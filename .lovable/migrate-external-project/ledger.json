@@ -1,0 +1,103 @@
+{
+  "source": "code-archive: Boardroom--main (Google AI Studio vanilla ES-module app)",
+  "capabilities": [
+    {
+      "capability": "code",
+      "source": "index.html + js/app.js hash router + js/views/*.js (dashboard, venture boardroom, agents, settings)",
+      "outcome": "Ported into TanStack Start: shell in __root, one TanStack route per source route, view modules hosted client-side",
+      "status": "migrated",
+      "next_action": "none"
+    },
+    {
+      "capability": "design system",
+      "source": "Tailwind Play CDN config + css/styles.css",
+      "outcome": "Re-created as Tailwind v4 tokens and component classes in src/styles.css; fonts via <link>",
+      "status": "migrated",
+      "next_action": "none"
+    },
+    {
+      "capability": "routes",
+      "source": "#/dashboard, #/agents, #/settings, #/venture/:id, #/venture/:id/(boardroom|deliverables|notes), #/venture/:id/phase/:phase",
+      "outcome": "Real paths: /, /dashboard (redirect), /agents, /settings, /venture/$id, /venture/$id/$tab, /venture/$id/phase/$phase",
+      "status": "migrated",
+      "next_action": "none"
+    },
+    {
+      "capability": "schema",
+      "source": "IndexedDB boardroom_db v2 (agents, ventures, sessions, deliverables, settings)",
+      "outcome": "Kept in-browser IndexedDB (user chose 'Keep on this device' instead of Lovable Cloud)",
+      "status": "accepted",
+      "next_action": "none"
+    },
+    {
+      "capability": "records",
+      "source": "Browser-local IndexedDB only; nothing in archive",
+      "outcome": "No server records exist; each founder's data lives in their own browser and is not portable across origins",
+      "status": "accepted",
+      "next_action": "none"
+    },
+    {
+      "capability": "auth identities",
+      "source": "none (no sign-in in source)",
+      "outcome": "not applicable",
+      "status": "absent",
+      "next_action": "none"
+    },
+    {
+      "capability": "authorization",
+      "source": "none",
+      "outcome": "not applicable",
+      "status": "absent",
+      "next_action": "none"
+    },
+    {
+      "capability": "uploaded file bytes",
+      "source": "none",
+      "outcome": "not applicable",
+      "status": "absent",
+      "next_action": "none"
+    },
+    {
+      "capability": "AI providers",
+      "source": "js/llm.js: offline mock (default), OpenAI-compatible, Anthropic, Gemini called from the browser with founder-supplied keys stored in IndexedDB",
+      "outcome": "Preserved unchanged (bring-your-own-key, client-side)",
+      "status": "migrated",
+      "next_action": "Live OpenAI/Anthropic/Gemini calls need a founder's own key in Settings; untested here"
+    },
+    {
+      "capability": "secrets",
+      "source": ".env.example GEMINI_API_KEY / APP_URL (AI Studio runtime metadata, not referenced by app code)",
+      "outcome": "Not needed: keys are entered by each founder in Settings",
+      "status": "absent",
+      "next_action": "none"
+    },
+    {
+      "capability": "public endpoints / callbacks / webhooks / schedules",
+      "source": "none",
+      "outcome": "not applicable",
+      "status": "absent",
+      "next_action": "none"
+    },
+    {
+      "capability": "payments / email / analytics",
+      "source": "none",
+      "outcome": "not applicable",
+      "status": "absent",
+      "next_action": "none"
+    },
+    {
+      "capability": "cutover",
+      "source": "AI Studio hosting",
+      "outcome": "Publish from Lovable when ready",
+      "status": "pending",
+      "next_action": "user publishes"
+    },
+    {
+      "capability": "verification",
+      "source": "-",
+      "outcome": "Build OK; route tests pass; browser check: venture created, offline-demo board reply streamed, agents/settings/back navigation, data persisted after reload, phone layout + drawer, 404",
+      "status": "verified",
+      "next_action": "none"
+    }
+  ]
+}
