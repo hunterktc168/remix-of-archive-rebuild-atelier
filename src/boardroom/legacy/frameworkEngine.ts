@@ -361,7 +361,7 @@ export function applyRepair(doc: FrameworkDoc, repairInput: unknown, framework: 
 /* Prompts                                                             */
 /* ------------------------------------------------------------------ */
 
-function describeSchema(sections: SectionSchema[]): string {
+export function describeSchema(sections: SectionSchema[]): string {
   return sections
     .map((s) => {
       const limits = [s.minItems ? `min ${s.minItems}` : "", s.maxItems ? `max ${s.maxItems}` : ""].filter(Boolean).join(", ");
