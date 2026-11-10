@@ -601,9 +601,9 @@ export function ltvFromRevenueModel(bullets: string[]): { ltv: number; basis: st
 }
 
 interface FrameworkLike {
-  framework?: string;
-  sections?: FrameworkSection[];
-  currentVersion?: number;
+  framework?: string | undefined;
+  sections?: FrameworkSection[] | undefined;
+  currentVersion?: number | undefined;
 }
 
 /** LTV from the venture's Lean Canvas, else its Business Blueprint. */
