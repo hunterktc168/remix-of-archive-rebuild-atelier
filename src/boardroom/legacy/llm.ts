@@ -12,7 +12,7 @@
  */
 
 import { getSetting } from './db';
-import { mockFrameworkDoc, mockRepairResponse } from './mockFrameworks';
+import { mockFrameworkDoc, mockRepairResponse, mockMarcusReplan, mockElenaReview } from './mockFrameworks';
 
 /**
  * Read an error body safely. The response body can only be consumed once, so we
@@ -207,6 +207,12 @@ export class MockProvider {
     }
     if (meta?.action === 'repair_framework') {
       return JSON.stringify(mockRepairResponse(meta.frameworkId, meta.repairIds || [], meta.venture || {}, meta.phaseId), null, 2);
+    }
+    if (meta?.action === 'workbench_marcus') {
+      return JSON.stringify(mockMarcusReplan(meta), null, 2);
+    }
+    if (meta?.action === 'workbench_elena') {
+      return JSON.stringify(mockElenaReview(meta), null, 2);
     }
 
     // 1. Validation Challenge Target (David interrogating another director's remark)
@@ -413,7 +419,7 @@ We recommend focusing all available bandwidth on resolving the highest-risk assu
     // Split into realistic small word/punctuation chunks
     const chunks = fullText.split(/(\s+)/);
     // Structured JSON drafts are long; stream them in bigger bursts.
-    const isStructured = meta?.action === 'synthesize_framework' || meta?.action === 'repair_framework';
+    const isStructured = ['synthesize_framework', 'repair_framework', 'workbench_marcus', 'workbench_elena'].includes(meta?.action);
     const burst = isStructured ? 24 : 1;
 
     for (let i = 0; i < chunks.length; i += burst) {

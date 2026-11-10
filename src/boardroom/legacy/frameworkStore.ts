@@ -16,7 +16,17 @@ import {
   applyRepair,
   docToMarkdown,
   sectionsNeedingRepair,
+  extractJson,
 } from './frameworkEngine';
+import {
+  workbenchFromDoc,
+  docFromWorkbench,
+  ltvFromFrameworks,
+  buildMarcusPrompt,
+  buildElenaPrompt,
+  leversLabel,
+  effectiveLtv,
+} from './marketingWorkbench';
 
 const MAX_TOKENS = 4096;
 
@@ -75,9 +85,24 @@ function mirror(deliv, entry, ventureName) {
     sourceMessageIds: entry.sourceMessageIds ?? deliv.sourceMessageIds ?? [],
     derivedFrom: entry.derivedFrom ?? deliv.derivedFrom ?? null,
     contextFrameworkIds: entry.contextFrameworkIds ?? deliv.contextFrameworkIds ?? [],
+    workbench: entry.workbench ?? null,
+    changeLog: entry.changeLog ?? [],
+    // A new version supersedes any unsaved working copy.
+    draft: null,
     content: docToMarkdown(doc, { ventureName, version: entry.version }),
     updatedAt: Date.now(),
   };
+}
+
+const isPlan = (frameworkId) => frameworkId === 'marketing-plan';
+
+/** Marketing Plan versions carry a structured workbench next to their sections. */
+function planPayload(frameworkId, result, prevWorkbench, levers) {
+  if (!isPlan(frameworkId)) return { sections: result.doc.sections };
+  const workbench = workbenchFromDoc(result.doc, { prev: prevWorkbench, levers });
+  // Normalise valid plans so computed columns (shares, volume) match the numbers.
+  if (!result.issues.length) return { sections: docFromWorkbench(workbench, result.doc.title).sections, workbench };
+  return { sections: result.doc.sections, workbench };
 }
 
 async function ratify(venture, phase, framework, deliv) {
@@ -157,10 +182,12 @@ export async function synthesizeFramework({ venture, phaseId, frameworkId, deriv
 
   const result = validateFrameworkOutput(raw, framework, phase.id);
   const existing = await get('deliverables', id);
+  const prevWb = existing?.workbench || null;
+  const payload = planPayload(framework.id, result, prevWb, prevWb ? { goal: prevWb.levers.goal, risk: prevWb.levers.risk } : undefined);
   const { versions, entry } = stampVersion(existing, {
     source: deriveSource ? 'derived' : 'generated',
     title: result.doc.title,
-    sections: result.doc.sections,
+    ...payload,
     issues: result.issues,
     warnings: result.warnings,
     status: result.issues.length ? 'needs-repair' : 'complete',
@@ -229,7 +256,7 @@ export async function repairFrameworkDeliverable({ deliverableId, signal, onChun
   const { versions, entry } = stampVersion(deliv, {
     source: 'repaired',
     title: result.doc.title,
-    sections: result.doc.sections,
+    ...planPayload(framework.id, result, deliv.workbench, deliv.workbench?.levers),
     issues: result.issues,
     warnings: result.warnings,
     status: result.issues.length ? 'needs-repair' : 'complete',
@@ -250,7 +277,7 @@ export async function saveEditedVersion(deliverableId, sections, title) {
   const { versions, entry } = stampVersion(deliv, {
     source: 'edited',
     title: result.doc.title,
-    sections: result.doc.sections,
+    ...planPayload(deliv.framework, result, deliv.workbench, deliv.workbench?.levers),
     issues: result.issues,
     warnings: result.warnings,
     status: result.issues.length ? 'needs-repair' : 'complete',
@@ -273,11 +300,157 @@ export async function restoreVersion(deliverableId, versionNumber) {
     issues: old.issues || [],
     warnings: old.warnings || [],
     status: old.status,
-    note: `Restored from v${versionNumber}`,
+    workbench: old.workbench,
+    changeLog: old.changeLog,
+    note: `Restored from v${versionNumber}${old.workbench ? ` · ${leversLabel(old.workbench.levers)}` : ''}`,
   });
   const deliverable = mirror({ ...deliv, versions }, entry, venture?.name);
   await put('deliverables', deliverable);
   return deliverable;
+}
+
+/* ------------------------------------------------------------------ */
+/* Marketing Plan workbench                                             */
+/* ------------------------------------------------------------------ */
+
+/** The workbench for a version (derived from its sections for older records). */
+export function versionWorkbench(deliv, version) {
+  if (version?.workbench) return version.workbench;
+  const doc = { title: version?.title || deliv.title, framework: deliv.framework, sections: version?.sections || deliv.sections || [] };
+  return workbenchFromDoc(doc);
+}
+
+/** Persist the founder's unsaved working copy (not a version). */
+export async function saveWorkbenchDraft(deliverableId, workbench) {
+  const deliv = await get('deliverables', deliverableId);
+  if (!deliv) return null;
+  deliv.draft = { workbench, basedOnVersion: deliv.currentVersion, updatedAt: Date.now() };
+  await put('deliverables', deliv);
+  return deliv;
+}
+
+export async function discardWorkbenchDraft(deliverableId) {
+  const deliv = await get('deliverables', deliverableId);
+  if (!deliv) return null;
+  deliv.draft = null;
+  await put('deliverables', deliv);
+  return deliv;
+}
+
+/** Commit a workbench as a new version (edits, one-click reallocation). */
+export async function commitWorkbench(deliverableId, workbench, { source = 'edited', note, changeLog = [] } = {}) {
+  const deliv = await get('deliverables', deliverableId);
+  if (!isFrameworkDeliverable(deliv)) throw new Error('Deliverable not found');
+  const framework = getFramework(deliv.framework);
+  const venture = await getVenture(deliv.ventureId);
+  const doc = docFromWorkbench(workbench, deliv.title);
+  const result = validateFrameworkOutput(doc, framework, deliv.phase);
+  const { versions, entry } = stampVersion(deliv, {
+    source,
+    title: result.doc.title,
+    sections: result.doc.sections,
+    workbench,
+    changeLog,
+    issues: result.issues,
+    warnings: result.warnings,
+    status: result.issues.length ? 'needs-repair' : 'complete',
+    note: note || leversLabel(workbench.levers),
+  });
+  const deliverable = mirror({ ...deliv, versions }, entry, venture?.name);
+  await put('deliverables', deliverable);
+  return deliverable;
+}
+
+/**
+ * "Recalculate with the board": Marcus re-plans for the levers (and the founder's
+ * interview answers when evolving), Elena audits the money, and the result is a NEW
+ * version. The previous version is never touched.
+ * onStage(index, state, detail) drives the progress modal (0 = Marcus, 1 = Elena).
+ */
+export async function recalculatePlan({ deliverableId, workbench, fromLevers, answers = null, signal, onStage }) {
+  const deliv = await get('deliverables', deliverableId);
+  if (!isFrameworkDeliverable(deliv) || !isPlan(deliv.framework)) throw new Error('Marketing Plan not found');
+  const framework = getFramework(deliv.framework);
+  const venture = await getVenture(deliv.ventureId);
+  const phase = PHASES.find(p => p.id === deliv.phase) || PHASES[0];
+  const transcript = await getPhaseTranscript(venture.id, phase.id);
+  const contextPacket = buildContextPacket(venture, phase.id, transcript);
+  const ltvInfo = ltvFromFrameworks(await getFrameworkDeliverables(venture.id));
+  const ltv = effectiveLtv(workbench, ltvInfo);
+  const levers = { ...workbench.levers };
+  const from = fromLevers || versionWorkbench(deliv, deliv.versions?.[deliv.versions.length - 1]).levers;
+
+  // 1) Marcus re-plans
+  onStage?.(0, 'start');
+  const mp = buildMarcusPrompt({ framework, contextPacket, workbench, fromLevers: from, levers, ltvInfo, answers });
+  const marcusRaw = await collectText(
+    stream({
+      system: mp.system,
+      messages: [{ role: 'user', content: mp.user }],
+      maxTokens: MAX_TOKENS,
+      temperature: 0.4,
+      signal,
+      meta: { agentId: 'marcus', action: 'workbench_marcus', venture, workbench, levers, fromLevers: from, answers, title: deliv.title },
+    }),
+    signal,
+    (t) => onStage?.(0, 'chunk', t.length),
+  );
+  const marcusJson = extractJson(marcusRaw);
+  if (!marcusJson) throw new Error("Marcus's re-plan could not be read as a plan; nothing was saved.");
+  const marcusResult = validateFrameworkOutput(marcusJson, framework, phase.id);
+  // Without an interview the founder's budget lever is binding; an interview may set a new one.
+  const replanned = workbenchFromDoc(marcusResult.doc, { prev: workbench, levers: answers ? { goal: levers.goal, risk: levers.risk } : levers });
+  const marcusLog = Array.isArray(marcusJson.changeLog) ? marcusJson.changeLog.map(String) : [];
+  onStage?.(0, 'done', marcusLog.length);
+
+  // 2) Elena audits channel economics (only money sections may change)
+  onStage?.(1, 'start');
+  const ep = buildElenaPrompt({ framework, contextPacket, workbench: replanned, ltvInfo });
+  const elenaRaw = await collectText(
+    stream({
+      system: ep.system,
+      messages: [{ role: 'user', content: ep.user }],
+      maxTokens: MAX_TOKENS,
+      temperature: 0.3,
+      signal,
+      meta: { agentId: 'elena', action: 'workbench_elena', venture, workbench: replanned, prevWorkbench: workbench, ltv },
+    }),
+    signal,
+    (t) => onStage?.(1, 'chunk', t.length),
+  );
+  const elenaJson = extractJson(elenaRaw);
+  const elenaLog = Array.isArray(elenaJson?.changeLog) ? elenaJson.changeLog.map(String) : [];
+  const moneyIds = ['channel-portfolio', 'budget-allocation'];
+  const audited = elenaJson
+    ? applyRepair(docFromWorkbench(replanned, deliv.title), elenaJson, framework, moneyIds, phase.id)
+    : null;
+  const finalWb = audited && !audited.issues.some(i => moneyIds.includes(i.sectionId))
+    ? workbenchFromDoc(audited.doc, { prev: replanned, levers: replanned.levers })
+    : replanned;
+  onStage?.(1, 'done', elenaLog.length);
+
+  const doc = docFromWorkbench(finalWb, marcusResult.doc.title || deliv.title);
+  const result = validateFrameworkOutput(doc, framework, phase.id);
+  const changeLog = [
+    ...marcusLog.map(c => `Marcus: ${c}`),
+    ...elenaLog.map(c => `Elena: ${c}`),
+  ];
+  const { versions, entry } = stampVersion(deliv, {
+    source: answers ? 'evolved' : 'recalculated',
+    title: result.doc.title,
+    sections: result.doc.sections,
+    workbench: finalWb,
+    changeLog,
+    answers: answers || undefined,
+    issues: result.issues,
+    warnings: result.warnings,
+    status: result.issues.length ? 'needs-repair' : 'complete',
+    note: leversLabel(finalWb.levers),
+    sourceMessageIds: transcript.map(m => m.id).filter(Boolean),
+  });
+  const deliverable = mirror({ ...deliv, versions }, entry, venture.name);
+  await put('deliverables', deliverable);
+  return { deliverable, validation: result };
 }
 
 export { sectionsNeedingRepair };

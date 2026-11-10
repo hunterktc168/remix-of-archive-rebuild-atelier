@@ -3,6 +3,7 @@
  * works end-to-end without an AI key. Output always satisfies the schema rules.
  */
 import type { FrameworkDoc } from "./frameworkEngine";
+import { replanForLevers, financeReview, docFromWorkbench, type Workbench, type Levers, type EvolveAnswers } from "./marketingWorkbench";
 
 export interface MockVenture {
   name?: string;
@@ -140,10 +141,10 @@ export function mockFrameworkDoc(frameworkId: string, venture: MockVenture, phas
           { id: "icp", heading: "ICP & Segments", kind: "bullets", body: [`Primary: ops leads at ${industry} companies with 20–200 staff exporting data to spreadsheets weekly`, "Secondary: finance managers at multi-site groups who own the margin target", "Anti-persona: enterprises with in-house BI teams and 12-month procurement"] },
           { id: "messaging-pillars", heading: "Messaging Pillars", kind: "bullets", body: ["Value in minutes — 4-minute time-to-first-insight; no implementation project", "Margin you can see — ranked alerts tied to dollar impact; weekly CFO report", "Priced for mid-size — $299/month per site; cancel any month"] },
           { id: "channel-portfolio", heading: "Channel Portfolio", kind: "table", body: { columns: ["Channel", "Role in funnel", "Monthly budget", "Expected CAC", "Expected volume", "Confidence (1–5)", "Status"], rows: [
-            ["Founder outreach", "Acquisition (bottom)", "$1,000", "$250", "4 customers", "4", "Active"],
-            ["Community content", "Awareness (top)", "$1,500", "$500", "3 customers", "3", "Planned"],
-            ["LinkedIn ads", "Demand capture (middle)", "$2,000", "$1,000", "2 customers", "2", "Test"],
-            ["Integration marketplace", "Acquisition (bottom)", "$500", "$250", "2 customers", "3", "Planned"],
+            ["Founder outreach", "Acquisition (bottom)", "$1,000", "$250", "4 customers/mo", "4", "Scaling"],
+            ["Community content", "Awareness (top)", "$1,500", "$500", "3 customers/mo", "3", "Testing"],
+            ["LinkedIn ads", "Demand capture (middle)", "$2,000", "$1,000", "2 customers/mo", "2", "Testing"],
+            ["Integration marketplace", "Acquisition (bottom)", "$500", "$250", "2 customers/mo", "3", "Testing"],
           ] } },
           { id: "budget-allocation", heading: "Budget Allocation", kind: "metrics", body: [
             { label: "Total monthly budget", value: "$5,000" },
@@ -158,12 +159,12 @@ export function mockFrameworkDoc(frameworkId: string, venture: MockVenture, phas
             ["LinkedIn title targeting", "Ops titles click at ≥ 0.8% CTR", "$1,000", "CAC ≤ $1,000 by week 6", "No customer after $2,000"],
           ] } },
           { id: "launch-sequence", heading: "Launch Sequence", kind: "table", body: { columns: ["Stage", "Weeks", "Actions", "Owner"], rows: [
-            ["Pre-launch", "Weeks 1–4", "Waitlist, ROI calculator, 10 deposit pilots", "Founder"],
-            ["Launch", "Weeks 5–8", "Public pricing, community AMA, marketplace listing", "Marcus (CMO)"],
-            ["Scale", "Weeks 9–16", "Double the best channel, hire first SDR at 15 customers", "Founder + Elena (CFO)"],
+            ["Pre-launch", "Weeks 1–4", "Wk 1: Waitlist page (Sam Torres); Wk 2: ROI calculator (Marcus Webb); Wk 3: 10 deposit pilots (Founder)", "Founder + Marcus"],
+            ["Launch", "Weeks 5–8", "Wk 5: Public pricing (Elena Vasquez); Wk 6: Community AMA (Marcus Webb); Wk 7: Marketplace listing (Priya Raman)", "Marcus (CMO)"],
+            ["Scale", "Weeks 9–16", "Wk 9: Double the best channel (Marcus Webb); Wk 12: Hire first SDR at 15 customers (Founder)", "Founder + Elena (CFO)"],
           ] } },
           { id: "kpis", heading: "KPIs & Cadence", kind: "metrics", body: [
-            { label: "North-star metric", value: "Weekly active sites acting on ≥ 3 alerts" },
+            { label: "North-star metric", value: "Weekly active sites acting on ≥ 3 alerts (target 25)" },
             { label: "Weekly review metric", value: "Qualified demos booked (target 6)" },
             { label: "Monthly review metric", value: "Blended CAC (target ≤ $500) and payback (≤ 6 months)" },
           ] },
@@ -174,6 +175,20 @@ export function mockFrameworkDoc(frameworkId: string, venture: MockVenture, phas
     default:
       return { title: name, framework: frameworkId, sections: [] };
   }
+}
+
+/** Offline Marcus: deterministic re-plan for new levers / interview answers. */
+export function mockMarcusReplan(meta: { workbench: Workbench; levers: Levers; fromLevers?: Levers; answers?: EvolveAnswers | null; title?: string }) {
+  const r = replanForLevers(meta.workbench, meta.levers, meta.answers ?? null, meta.fromLevers ?? meta.workbench.levers);
+  const doc = docFromWorkbench(r.workbench, meta.title || "Marketing Plan");
+  return { ...doc, changeLog: r.changeLog };
+}
+
+/** Offline Elena: finance check returning only the money sections. */
+export function mockElenaReview(meta: { workbench: Workbench; prevWorkbench?: Workbench | null; ltv?: number | null }) {
+  const r = financeReview(meta.workbench, meta.prevWorkbench ?? null, meta.ltv ?? null);
+  const doc = docFromWorkbench(r.workbench, "");
+  return { sections: doc.sections.filter((s) => s.id === "channel-portfolio" || s.id === "budget-allocation"), changeLog: r.changeLog };
 }
 
 export function mockRepairResponse(frameworkId: string, ids: string[], venture: MockVenture, phase: string) {
