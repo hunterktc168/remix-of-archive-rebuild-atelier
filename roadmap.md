@@ -6,7 +6,6 @@
   - [x] Chair synthesis per framework with cross-framework context and "Derive from…"
   - [x] Strategic Toolkit panel (checklist + Generate selected)
   - [x] Deliverable cards: 2x2 matrix, 9-box canvas, plan view; versions, edit, export
-  - [x] Offline demo board returns valid framework JSON
 - [ ] Marketing Plan workbench (cockpit)
   - [ ] Levers strip (budget / goal / risk) → "needs re-synthesis" → Recalculate (Marcus + Elena) → new version; version picker labels
   - [ ] Channel portfolio table with computed %, volume, LTV:CAC; budget overflow warning; Run experiment; dynamic reallocation
