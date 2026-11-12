@@ -6,15 +6,19 @@
  */
 import { escapeHtml } from '../markdown';
 import { FRAMEWORKS, getFramework, frameworksForPhase, frameworkLabel, defaultSelection } from '../schemas';
-import { docToMarkdown } from '../frameworkEngine';
 import {
   synthesizeFramework,
   repairFrameworkDeliverable,
   saveEditedVersion,
   restoreVersion,
   isFrameworkDeliverable,
+  getFrameworkDeliverables,
+  recalculatePlan,
 } from '../frameworkStore';
 import { getAll, get, getVenture } from '../db';
+import { renderWorkbench, wireWorkbench } from './workbench';
+import { ltvFromFrameworks, leversLabel } from '../marketingWorkbench';
+import { deliverableMarkdown, deliverableHtml } from '../exporter';
 
 /** Generation order: canvases first so later frameworks see them as context. */
 const GENERATION_ORDER = ['lean-canvas', 'business-blueprint', 'swot', 'marketing-plan'];
@@ -49,7 +53,16 @@ const SOURCE_LABEL = {
   repaired: 'Repaired',
   edited: 'Edited',
   restored: 'Restored',
+  recalculated: 'Recalculated',
+  evolved: 'Evolved',
+  reallocated: 'Reallocated',
 };
+
+/** Picker label: plan versions show their levers, e.g. "v2 · $10k/mo aggressive". */
+function versionLabel(deliv, x) {
+  const levers = deliv.framework === 'marketing-plan' && x.workbench?.levers ? leversLabel(x.workbench.levers) : null;
+  return `v${x.version} · ${levers ? `${levers} · ` : ''}${SOURCE_LABEL[x.source] || x.source}${x.version === deliv.currentVersion ? ' (current)' : ''}`;
+}
 
 /* ------------------------------------------------------------------ */
 /* Strategic Toolkit panel (Boardroom tab)                              */
@@ -540,12 +553,13 @@ function versionOf(deliv, n) {
   };
 }
 
-export function renderFrameworkCard(deliv, { viewVersion, editing = false } = {}) {
+export function renderFrameworkCard(deliv, { viewVersion, editing = false, ltvInfo = null } = {}) {
   const framework = getFramework(deliv.framework);
   if (!framework) return '';
   const v = versionOf(deliv, viewVersion ?? deliv.currentVersion);
   const isCurrent = v.version === deliv.currentVersion;
   const label = frameworkLabel(framework, deliv.phase);
+  const isPlan = framework.id === 'marketing-plan';
   const issues = v.issues || [];
   const warnings = v.warnings || [];
   const derived = deliv.derivedFrom && isCurrent ? `<span class="chip text-[10px] py-0 px-1.5 font-mono">Derived from ${escapeHtml(getFramework(deliv.derivedFrom.framework)?.label || deliv.derivedFrom.framework)} v${deliv.derivedFrom.version}</span>` : '';
@@ -572,12 +586,13 @@ export function renderFrameworkCard(deliv, { viewVersion, editing = false } = {}
         <div class="flex flex-wrap items-center gap-1.5 shrink-0">
           <label class="sr-only" for="ver-${deliv.id}">Version</label>
           <select id="ver-${deliv.id}" class="fw-version-select input text-[11px] py-1.5 px-2 bg-base w-auto">
-            ${[...(deliv.versions || [])].reverse().map(x => `<option value="${x.version}" ${x.version === v.version ? 'selected' : ''}>v${x.version} · ${SOURCE_LABEL[x.source] || x.source}${x.version === deliv.currentVersion ? ' (current)' : ''}</option>`).join('')}
+            ${[...(deliv.versions || [])].reverse().map(x => `<option value="${x.version}" ${x.version === v.version ? 'selected' : ''}>${escapeHtml(versionLabel(deliv, x))}</option>`).join('')}
           </select>
-          ${!editing ? `<button class="fw-edit-btn btn btn-ghost text-xs py-1.5 px-2.5 border border-subtle">Edit</button>` : ''}
+          ${!editing && !isPlan ? `<button class="fw-edit-btn btn btn-ghost text-xs py-1.5 px-2.5 border border-subtle">Edit</button>` : ''}
           <button class="fw-regen-btn btn btn-ghost text-xs py-1.5 px-2.5 border border-subtle">Regenerate</button>
           <button class="fw-copy-btn btn btn-ghost text-xs py-1.5 px-2.5 border border-subtle"><span>Copy</span></button>
           <button class="fw-md-btn btn btn-ghost text-xs py-1.5 px-2.5 border border-subtle">.md</button>
+          <button class="fw-html-btn btn btn-ghost text-xs py-1.5 px-2.5 border border-subtle">.html</button>
           <button class="fw-json-btn btn btn-ghost text-xs py-1.5 px-2.5 border border-subtle">.json</button>
         </div>
       </div>
@@ -601,7 +616,7 @@ export function renderFrameworkCard(deliv, { viewVersion, editing = false } = {}
         <div class="text-[11px] text-muted">Notes: ${warnings.map(w => escapeHtml(w.problem)).join(' ')}</div>` : ''}
 
       <div class="fw-body">
-        ${editing ? renderEditor(v, framework) : renderBody(v, framework, deliv.phase)}
+        ${editing ? renderEditor(v, framework) : isPlan ? renderWorkbench(deliv, v, { ltvInfo, readOnly: !isCurrent }) : renderBody(v, framework, deliv.phase)}
       </div>
     </div>`;
 }
@@ -628,8 +643,15 @@ export function wireFrameworkCards({ venture, root }) {
   const rerender = async (id, opts = {}) => {
     const deliv = await get('deliverables', id);
     const card = root.querySelector(`[data-fw-card="${id}"]`);
-    if (deliv && card) card.outerHTML = renderFrameworkCard(deliv, opts);
+    if (!deliv || !card) return;
+    const ltvInfo = ltvFromFrameworks(await getFrameworkDeliverables(venture.id));
+    card.outerHTML = renderFrameworkCard(deliv, { ltvInfo, ...opts });
   };
+
+  wireWorkbench(root, {
+    rerender: (id) => rerender(id),
+    runRecalc: (args) => runPlanRecalc({ venture, ...args, onDone: () => rerender(args.deliverableId) }),
+  });
 
   root.addEventListener('change', async (e) => {
     const sel = e.target.closest?.('.fw-version-select');
@@ -677,15 +699,18 @@ export function wireFrameworkCards({ venture, root }) {
     const doc = { title: v.title, framework: deliv.framework, sections: v.sections };
     const slug = `${(venture.name || 'venture').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${deliv.framework}-v${v.version}`;
 
+    const exportOpts = { ventureName: venture.name, version: v.version, ltvInfo: ltvFromFrameworks(await getFrameworkDeliverables(venture.id)) };
     if (t.closest('.fw-copy-btn')) {
-      await navigator.clipboard.writeText(docToMarkdown(doc, { ventureName: venture.name, version: v.version }));
+      await navigator.clipboard.writeText(deliverableMarkdown(deliv, exportOpts));
       const span = t.closest('.fw-copy-btn').querySelector('span');
       span.textContent = '✓ Copied';
       setTimeout(() => { span.textContent = 'Copy'; }, 1800);
     } else if (t.closest('.fw-md-btn')) {
-      download(`${slug}.md`, docToMarkdown(doc, { ventureName: venture.name, version: v.version }), 'text/markdown;charset=utf-8');
+      download(`${slug}.md`, deliverableMarkdown(deliv, exportOpts), 'text/markdown;charset=utf-8');
+    } else if (t.closest('.fw-html-btn')) {
+      download(`${slug}.html`, deliverableHtml(deliv, exportOpts), 'text/html;charset=utf-8');
     } else if (t.closest('.fw-json-btn')) {
-      const payload = { ...doc, venture: venture.name, phase: deliv.phase, version: v.version, source: v.source, createdAt: new Date(v.createdAt).toISOString(), sourceMessageIds: deliv.sourceMessageIds || [], derivedFrom: deliv.derivedFrom || null };
+      const payload = { ...doc, framework: deliv.framework, workbench: v.workbench || undefined, venture: venture.name, phase: deliv.phase, version: v.version, source: v.source, createdAt: new Date(v.createdAt).toISOString(), sourceMessageIds: deliv.sourceMessageIds || [], derivedFrom: deliv.derivedFrom || null };
       download(`${slug}.json`, JSON.stringify(payload, null, 2), 'application/json');
     } else if (t.closest('.fw-restore-btn')) {
       await restoreVersion(id, v.version);
@@ -696,6 +721,76 @@ export function wireFrameworkCards({ venture, root }) {
       runFrameworkJobs({ venture, phaseId: deliv.phase, jobs: [{ type: 'generate', frameworkId: deliv.framework, deriveFromId: null }], onChanged: () => rerender(id) });
     }
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Marketing Plan: "Recalculate with the board" progress                */
+/* ------------------------------------------------------------------ */
+
+async function runPlanRecalc({ venture, deliverableId, workbench, fromLevers, answers, onDone }) {
+  const modal = ensureModal();
+  const list = modal.querySelector('#fw-modal-jobs');
+  const stopBtn = modal.querySelector('#fw-modal-stop');
+  const closeBtn = modal.querySelector('#fw-modal-close');
+  const viewBtn = modal.querySelector('#fw-modal-view');
+  modal.querySelector('#fw-modal-title').textContent = answers ? 'Evolving the Marketing Plan' : 'Recalculating with the board';
+  modal.querySelector('#fw-modal-sub').textContent = `Marcus re-plans for ${leversLabel(workbench.levers)}, then Elena audits the money.`;
+  const stages = [
+    { name: 'Marcus Webb · re-plan', wait: answers ? 'Reading your interview answers next.' : 'Re-planning channels for the new levers.' },
+    { name: 'Elena Voss · money audit', wait: 'Checks CAC, LTV:CAC and the budget split after Marcus.' },
+  ];
+  list.innerHTML = stages.map((st, i) => `
+    <div class="p-3 rounded-lg border border-subtle bg-panel" data-job="${i}">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-semibold text-slate-200">${escapeHtml(st.name)}</span>
+        <span class="job-status chip text-[10px] py-0 px-1.5 font-mono">Queued</span>
+      </div>
+      <div class="job-detail text-[11px] text-muted mt-1.5 leading-relaxed">${escapeHtml(st.wait)}</div>
+    </div>`).join('');
+  modal.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+  stopBtn.classList.remove('hidden');
+  closeBtn.classList.add('hidden');
+  viewBtn.classList.add('hidden');
+
+  const controller = new AbortController();
+  let saved = false;
+  const close = () => {
+    controller.abort();
+    modal.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    modal.querySelector('#fw-modal-title').textContent = 'The Chair — Strategic Toolkit';
+    modal.querySelector('#fw-modal-sub').textContent = 'Drafting each framework against its schema.';
+    if (saved) {
+      window.dispatchEvent(new CustomEvent('boardroom:sync'));
+      onDone?.();
+    }
+  };
+  stopBtn.onclick = close;
+  closeBtn.onclick = close;
+
+  try {
+    const { deliverable } = await recalculatePlan({
+      deliverableId, workbench, fromLevers, answers, signal: controller.signal,
+      onStage: (i, state, detail) => {
+        if (state === 'start') setJob(i, 'Working', i === 0 ? 'Marcus is re-planning…' : 'Elena is auditing the numbers…');
+        else if (state === 'chunk') setJob(i, 'Working', `Receiving plan… ${Number(detail).toLocaleString()} characters`);
+        else setJob(i, 'Done', `${detail} change(s) logged.`, 'success');
+      },
+    });
+    saved = true;
+    modal.querySelector('#fw-modal-sub').textContent = `Saved as v${deliverable.currentVersion} · ${leversLabel(deliverable.workbench.levers)}. The previous version stays in the picker.`;
+    if (deliverable.status === 'needs-repair') {
+      modal.querySelector('#fw-modal-sub').textContent += ' Some sections need repair.';
+    }
+  } catch (err) {
+    if (err.name === 'AbortError' || controller.signal.aborted) return;
+    console.error('Plan recalculation failed:', err);
+    const running = [...list.querySelectorAll('.job-status')].findIndex(c => c.textContent !== 'Done');
+    setJob(Math.max(0, running), 'Failed', `<span class="text-danger">${escapeHtml(err.message || 'Unknown error')} — nothing was saved.</span>`, 'danger');
+  }
+  stopBtn.classList.add('hidden');
+  closeBtn.classList.remove('hidden');
 }
 
 export { FRAMEWORKS };

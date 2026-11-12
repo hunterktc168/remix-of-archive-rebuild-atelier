@@ -4,6 +4,8 @@ import { navigateTo, replaceUrlSilently } from '../../nav';
 import { phaseUsesFrameworks } from '../schemas';
 import { renderToolkitPanel, wireToolkit, renderFrameworkCard, wireFrameworkCards, readToolkitSelection } from './frameworks';
 import { isFrameworkDeliverable } from '../frameworkStore';
+import { ltvFromFrameworks } from '../marketingWorkbench';
+import { deliverableMarkdown, ventureMarkdown, ventureHtml, exportSlug } from '../exporter';
 /**
  * Venture Workspace & Boardroom Chamber View Module
  * Route: #/venture/:id/(boardroom|deliverables|notes)
@@ -2131,23 +2133,28 @@ function renderDeliverablesTab({ venture, ventureDeliverables }) {
 
   return `
     <div class="space-y-6">
-      <div class="flex items-center justify-between pb-2">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-2">
         <div>
           <h2 class="font-serif text-2xl text-slate-100">Executive Deliverables Archive</h2>
           <p class="text-xs text-muted">Board memos and strategic frameworks, each with its own versions and exports.</p>
         </div>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+        <span class="text-[10px] font-mono uppercase tracking-wider text-muted">Export full venture</span>
+        <button id="export-venture-md-btn" class="btn btn-ghost text-xs py-1.5 px-3 border border-subtle hover:text-slate-100">.md</button>
+        <button id="export-venture-html-btn" class="btn btn-ghost text-xs py-1.5 px-3 border border-subtle hover:text-slate-100">.html</button>
         <button id="print-all-deliverables-btn" class="btn btn-ghost text-xs py-1.5 px-3 border border-subtle hover:text-slate-100">
           <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
           Print / PDF Export
         </button>
+        </div>
       </div>
 
       <div class="space-y-6" id="deliverables-list">
         ${[...ventureDeliverables]
           .sort((a, b) => PHASES.findIndex(p => p.id === a.phase) - PHASES.findIndex(p => p.id === b.phase) || (a.createdAt || 0) - (b.createdAt || 0))
-          .map(deliv => isFrameworkDeliverable(deliv) ? renderFrameworkCard(deliv) : `
+          .map(deliv => isFrameworkDeliverable(deliv) ? renderFrameworkCard(deliv, { ltvInfo: ltvFromFrameworks(ventureDeliverables.filter(isFrameworkDeliverable)) }) : `
           <div class="panel p-6 sm:p-8 border-subtle space-y-4 deliverable-print-card" data-deliv-id="${deliv.id}">
             <!-- Header Toolbar -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-subtle">
@@ -2206,6 +2213,27 @@ function wireDeliverablesTab(venture, deliverables) {
     });
   }
 
+  // Full-venture export: deliverables in reading order + transcripts appendix
+  const saveFile = (filename, text, type) => {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const exportVenture = async (format) => {
+    const fresh = (await getAll('deliverables')).filter(d => d.ventureId === venture.id);
+    const sessions = (await getAll('sessions')).filter(s => s.ventureId === venture.id);
+    if (format === 'md') saveFile(exportSlug(venture.name, 'full-venture.md'), ventureMarkdown(venture, fresh, sessions), 'text/markdown;charset=utf-8');
+    else saveFile(exportSlug(venture.name, 'full-venture.html'), ventureHtml(venture, fresh, sessions), 'text/html;charset=utf-8');
+  };
+  document.getElementById('export-venture-md-btn')?.addEventListener('click', () => exportVenture('md'));
+  document.getElementById('export-venture-html-btn')?.addEventListener('click', () => exportVenture('html'));
+
   // Copy Markdown buttons
   const copyBtns = document.querySelectorAll('.copy-deliv-btn');
   copyBtns.forEach(btn => {
@@ -2213,7 +2241,7 @@ function wireDeliverablesTab(venture, deliverables) {
       const id = btn.getAttribute('data-deliv-id');
       const deliv = deliverables.find(d => d.id === id);
       if (deliv && deliv.content) {
-        await navigator.clipboard.writeText(deliv.content);
+        await navigator.clipboard.writeText(deliverableMarkdown(deliv, { ventureName: venture.name }));
         const span = btn.querySelector('span');
         if (span) {
           const original = span.textContent;
@@ -2233,7 +2261,7 @@ function wireDeliverablesTab(venture, deliverables) {
       if (deliv && deliv.content) {
         const slug = (venture.name || 'venture').toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const filename = `${slug}-${deliv.phase}-deliverable.md`;
-        const blob = new Blob([deliv.content], { type: 'text/markdown;charset=utf-8;' });
+        const blob = new Blob([deliverableMarkdown(deliv, { ventureName: venture.name })], { type: 'text/markdown;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
