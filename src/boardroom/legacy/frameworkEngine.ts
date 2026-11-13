@@ -3,7 +3,13 @@
  * targeted repair and markdown export for framework deliverables.
  * Pure functions only (no IndexedDB, no network) so the rules are unit-testable.
  */
-import { getFramework, frameworkLabel, type Framework, type SectionKind, type SectionSchema } from "./schemas";
+import {
+  getFramework,
+  frameworkLabel,
+  type Framework,
+  type SectionKind,
+  type SectionSchema,
+} from "./schemas";
 
 export interface TableBody {
   columns: string[];
@@ -97,7 +103,10 @@ export function parsePercent(value: unknown): number | null {
 const CITATION_RE = /(?:_[^_]+_|\*[^*]+\*)\s*\.?\s*$/;
 
 export function stripCitation(bullet: string): string {
-  return bullet.replace(CITATION_RE, "").replace(/[\s—–-]+$/, "").trim();
+  return bullet
+    .replace(CITATION_RE, "")
+    .replace(/[\s—–-]+$/, "")
+    .trim();
 }
 
 export function hasCitation(bullet: string): boolean {
@@ -141,7 +150,11 @@ function asString(v: unknown): string {
 function normalizeBullets(body: unknown): string[] | null {
   if (Array.isArray(body)) {
     const out = body
-      .map((b) => (typeof b === "object" && b !== null ? asString((b as Record<string, unknown>)["text"] ?? Object.values(b).join(" — ")) : asString(b)))
+      .map((b) =>
+        typeof b === "object" && b !== null
+          ? asString((b as Record<string, unknown>)["text"] ?? Object.values(b).join(" — "))
+          : asString(b),
+      )
       .map((s) => s.replace(/^[-*•]\s*/, ""))
       .filter(Boolean);
     return out;
@@ -169,7 +182,10 @@ function normalizeTable(body: unknown, schema: SectionSchema): TableBody | null 
       const obj = r as Record<string, unknown>;
       const keys = Object.keys(obj);
       return columns.map((col, i) => {
-        const key = keys.find((k) => k.toLowerCase().replace(/[^a-z]/g, "") === col.toLowerCase().replace(/[^a-z]/g, ""));
+        const key = keys.find(
+          (k) =>
+            k.toLowerCase().replace(/[^a-z]/g, "") === col.toLowerCase().replace(/[^a-z]/g, ""),
+        );
         return asString(key ? obj[key] : obj[keys[i] ?? ""]);
       });
     }
@@ -184,7 +200,10 @@ function normalizeMetrics(body: unknown): MetricItem[] | null {
       .map((m) => {
         if (m && typeof m === "object") {
           const o = m as Record<string, unknown>;
-          const item: MetricItem = { label: asString(o["label"] ?? o["name"] ?? o["metric"]), value: asString(o["value"] ?? o["target"]) };
+          const item: MetricItem = {
+            label: asString(o["label"] ?? o["name"] ?? o["metric"]),
+            value: asString(o["value"] ?? o["target"]),
+          };
           const note = asString(o["note"]);
           if (note) item.note = note;
           return item;
@@ -196,12 +215,19 @@ function normalizeMetrics(body: unknown): MetricItem[] | null {
       .filter((m) => m.label || m.value);
   }
   if (body && typeof body === "object") {
-    return Object.entries(body as Record<string, unknown>).map(([label, value]) => ({ label, value: asString(value) }));
+    return Object.entries(body as Record<string, unknown>).map(([label, value]) => ({
+      label,
+      value: asString(value),
+    }));
   }
   return null;
 }
 
-function normalizeBody(kind: SectionKind, body: unknown, schema: SectionSchema): SectionBody | null {
+function normalizeBody(
+  kind: SectionKind,
+  body: unknown,
+  schema: SectionSchema,
+): SectionBody | null {
   switch (kind) {
     case "prose": {
       if (Array.isArray(body)) return body.map(asString).join(" ").trim() || null;
@@ -233,7 +259,13 @@ function itemCount(section: FrameworkSection): number {
   return b.rows.length;
 }
 
-function validateSection(framework: Framework, schema: SectionSchema, section: FrameworkSection, issues: Issue[], warnings: Issue[]) {
+function validateSection(
+  framework: Framework,
+  schema: SectionSchema,
+  section: FrameworkSection,
+  issues: Issue[],
+  warnings: Issue[],
+) {
   const count = itemCount(section);
   const id = schema.id;
   if (count === 0) {
@@ -241,10 +273,16 @@ function validateSection(framework: Framework, schema: SectionSchema, section: F
     return;
   }
   if (schema.minItems && count < schema.minItems) {
-    issues.push({ sectionId: id, problem: `${schema.heading} needs at least ${schema.minItems} items (has ${count}).` });
+    issues.push({
+      sectionId: id,
+      problem: `${schema.heading} needs at least ${schema.minItems} items (has ${count}).`,
+    });
   }
   if (schema.maxItems && count > schema.maxItems) {
-    issues.push({ sectionId: id, problem: `${schema.heading} allows at most ${schema.maxItems} items (has ${count}).` });
+    issues.push({
+      sectionId: id,
+      problem: `${schema.heading} allows at most ${schema.maxItems} items (has ${count}).`,
+    });
   }
 
   // Framework-specific rules
@@ -252,11 +290,17 @@ function validateSection(framework: Framework, schema: SectionSchema, section: F
     const bullets = section.body as string[];
     const generic = bullets.filter((b) => isGenericBullet(b));
     if (generic.length) {
-      issues.push({ sectionId: id, problem: `Generic entries rejected: ${generic.map((g) => `"${stripCitation(g)}"`).join(", ")}. Name the specific capability, number or mechanism.` });
+      issues.push({
+        sectionId: id,
+        problem: `Generic entries rejected: ${generic.map((g) => `"${stripCitation(g)}"`).join(", ")}. Name the specific capability, number or mechanism.`,
+      });
     }
     const uncited = bullets.filter((b) => !hasCitation(b));
     if (uncited.length && id !== "strategic-implications") {
-      warnings.push({ sectionId: id, problem: `${uncited.length} bullet(s) lack an italic board-member citation.` });
+      warnings.push({
+        sectionId: id,
+        problem: `${uncited.length} bullet(s) lack an italic board-member citation.`,
+      });
     }
   }
 
@@ -270,28 +314,46 @@ function validateSection(framework: Framework, schema: SectionSchema, section: F
     }
   }
 
-  if (framework.id === "marketing-plan" && id === "channel-portfolio" && !Array.isArray(section.body) && typeof section.body !== "string") {
+  if (
+    framework.id === "marketing-plan" &&
+    id === "channel-portfolio" &&
+    !Array.isArray(section.body) &&
+    typeof section.body !== "string"
+  ) {
     const table = section.body;
     const budgetIdx = table.columns.indexOf("Monthly budget");
     const cacIdx = table.columns.indexOf("Expected CAC");
-    const bad = table.rows.filter((r) => parseMoney(r[budgetIdx]) === null || parseMoney(r[cacIdx]) === null);
+    const bad = table.rows.filter(
+      (r) => parseMoney(r[budgetIdx]) === null || parseMoney(r[cacIdx]) === null,
+    );
     if (bad.length) {
-      issues.push({ sectionId: id, problem: `Every channel needs a numeric Monthly budget and Expected CAC (${bad.map((r) => r[0] || "unnamed").join(", ")} missing).` });
+      issues.push({
+        sectionId: id,
+        problem: `Every channel needs a numeric Monthly budget and Expected CAC (${bad.map((r) => r[0] || "unnamed").join(", ")} missing).`,
+      });
     }
   }
 
-  if (framework.id === "marketing-plan" && id === "budget-allocation" && Array.isArray(section.body)) {
+  if (
+    framework.id === "marketing-plan" &&
+    id === "budget-allocation" &&
+    Array.isArray(section.body)
+  ) {
     const items = section.body as MetricItem[];
     const total = items.find((m) => /total/i.test(m.label));
     if (!total || parseMoney(total.value) === null) {
-      issues.push({ sectionId: id, problem: "Budget Allocation must start with a numeric 'Total monthly budget'." });
+      issues.push({
+        sectionId: id,
+        problem: "Budget Allocation must start with a numeric 'Total monthly budget'.",
+      });
     }
     const pcts = items.filter((m) => !/total/i.test(m.label)).map((m) => parsePercent(m.value));
     if (pcts.some((p) => p === null)) {
       issues.push({ sectionId: id, problem: "Every channel split must be a percentage." });
     } else {
       const sum = (pcts as number[]).reduce((a, b) => a + b, 0);
-      if (Math.abs(sum - 100) > 1) issues.push({ sectionId: id, problem: `Channel splits sum to ${sum}%, not 100%.` });
+      if (Math.abs(sum - 100) > 1)
+        issues.push({ sectionId: id, problem: `Channel splits sum to ${sum}%, not 100%.` });
     }
   }
 }
@@ -300,26 +362,55 @@ function validateSection(framework: Framework, schema: SectionSchema, section: F
  * Validate model output against a framework schema. Accepts raw text or a parsed object.
  * Sections are re-ordered to the schema order; unknown sections are dropped.
  */
-export function validateFrameworkOutput(input: unknown, framework: Framework, phase = framework.phase): ValidationResult {
+export function validateFrameworkOutput(
+  input: unknown,
+  framework: Framework,
+  phase = framework.phase,
+): ValidationResult {
   const parsed = typeof input === "string" ? extractJson(input) : input;
   const issues: Issue[] = [];
   const warnings: Issue[] = [];
   const unparseable = !parsed || typeof parsed !== "object";
   const obj = (unparseable ? {} : parsed) as Record<string, unknown>;
-  const rawSections = Array.isArray(obj["sections"]) ? (obj["sections"] as Record<string, unknown>[]) : [];
+  const rawSections = Array.isArray(obj["sections"])
+    ? (obj["sections"] as Record<string, unknown>[])
+    : [];
 
   const sections: FrameworkSection[] = framework.schema.map((schema) => {
-    const raw = rawSections.find((s) => s && (s["id"] === schema.id || asString(s["heading"]).toLowerCase() === schema.heading.toLowerCase()));
+    const raw = rawSections.find(
+      (s) =>
+        s &&
+        (s["id"] === schema.id ||
+          asString(s["heading"]).toLowerCase() === schema.heading.toLowerCase()),
+    );
     if (!raw) {
       issues.push({ sectionId: schema.id, problem: `Missing section "${schema.heading}".` });
-      return { id: schema.id, heading: schema.heading, kind: schema.kind, body: emptyBody(schema.kind, schema) };
+      return {
+        id: schema.id,
+        heading: schema.heading,
+        kind: schema.kind,
+        body: emptyBody(schema.kind, schema),
+      };
     }
     const body = normalizeBody(schema.kind, raw["body"], schema);
     if (body === null) {
-      issues.push({ sectionId: schema.id, problem: `${schema.heading} is malformed (expected ${schema.kind}).` });
-      return { id: schema.id, heading: schema.heading, kind: schema.kind, body: emptyBody(schema.kind, schema) };
+      issues.push({
+        sectionId: schema.id,
+        problem: `${schema.heading} is malformed (expected ${schema.kind}).`,
+      });
+      return {
+        id: schema.id,
+        heading: schema.heading,
+        kind: schema.kind,
+        body: emptyBody(schema.kind, schema),
+      };
     }
-    const section: FrameworkSection = { id: schema.id, heading: schema.heading, kind: schema.kind, body };
+    const section: FrameworkSection = {
+      id: schema.id,
+      heading: schema.heading,
+      kind: schema.kind,
+      body,
+    };
     validateSection(framework, schema, section, issues, warnings);
     return section;
   });
@@ -338,10 +429,18 @@ export function sectionsNeedingRepair(framework: Framework, issues: Issue[]): st
  * Merge a repair response (only the broken sections) into an existing document and
  * re-validate. Sections that were already valid are never replaced.
  */
-export function applyRepair(doc: FrameworkDoc, repairInput: unknown, framework: Framework, repairIds: string[], phase = framework.phase): ValidationResult {
+export function applyRepair(
+  doc: FrameworkDoc,
+  repairInput: unknown,
+  framework: Framework,
+  repairIds: string[],
+  phase = framework.phase,
+): ValidationResult {
   const parsed = typeof repairInput === "string" ? extractJson(repairInput) : repairInput;
   const repairSections =
-    parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>)["sections"])
+    parsed &&
+    typeof parsed === "object" &&
+    Array.isArray((parsed as Record<string, unknown>)["sections"])
       ? ((parsed as Record<string, unknown>)["sections"] as Record<string, unknown>[])
       : [];
 
@@ -364,7 +463,9 @@ export function applyRepair(doc: FrameworkDoc, repairInput: unknown, framework: 
 export function describeSchema(sections: SectionSchema[]): string {
   return sections
     .map((s) => {
-      const limits = [s.minItems ? `min ${s.minItems}` : "", s.maxItems ? `max ${s.maxItems}` : ""].filter(Boolean).join(", ");
+      const limits = [s.minItems ? `min ${s.minItems}` : "", s.maxItems ? `max ${s.maxItems}` : ""]
+        .filter(Boolean)
+        .join(", ");
       const shape =
         s.kind === "bullets"
           ? `body: array of short strings${limits ? ` (${limits})` : ""}`
@@ -393,12 +494,17 @@ export function sectionToMarkdown(s: FrameworkSection): string {
     return `${head}\n${b.rows.map((r) => `| ${r.map((c) => c.replace(/\|/g, "/")).join(" | ")} |`).join("\n")}`;
   }
   if (s.kind === "metrics" && Array.isArray(b)) {
-    return (b as MetricItem[]).map((m) => `- **${m.label}:** ${m.value}${m.note ? ` (${m.note})` : ""}`).join("\n");
+    return (b as MetricItem[])
+      .map((m) => `- **${m.label}:** ${m.value}${m.note ? ` (${m.note})` : ""}`)
+      .join("\n");
   }
   return (b as string[]).map((x) => `- ${x}`).join("\n");
 }
 
-export function docToMarkdown(doc: FrameworkDoc, extra?: { ventureName?: string; version?: number }): string {
+export function docToMarkdown(
+  doc: FrameworkDoc,
+  extra?: { ventureName?: string; version?: number },
+): string {
   const header = `# ${doc.title}${extra?.ventureName ? `\n\n_Venture: ${extra.ventureName}_` : ""}${extra?.version ? ` · _Version ${extra.version}_` : ""}`;
   return `${header}\n\n${doc.sections.map((s) => `## ${s.heading}\n\n${sectionToMarkdown(s)}`).join("\n\n")}\n`;
 }
@@ -413,10 +519,23 @@ export interface FrameworkPromptInput {
   deriveFrom?: PriorFramework | null;
 }
 
-export function buildFrameworkPrompt(input: FrameworkPromptInput): { system: string; user: string } {
-  const { framework, phase, contextPacket, priorFrameworks = [], validationReport, deriveFrom } = input;
+export function buildFrameworkPrompt(input: FrameworkPromptInput): {
+  system: string;
+  user: string;
+} {
+  const {
+    framework,
+    phase,
+    contextPacket,
+    priorFrameworks = [],
+    validationReport,
+    deriveFrom,
+  } = input;
   const label = frameworkLabel(framework, phase);
-  const lens = phase === "marketing" && framework.id === "swot" ? "\nLENS: Marketing. Weight go-to-market, positioning, channel and competitive factors." : "";
+  const lens =
+    phase === "marketing" && framework.id === "swot"
+      ? "\nLENS: Marketing. Weight go-to-market, positioning, channel and competitive factors."
+      : "";
 
   const prior = priorFrameworks.length
     ? `\n\n=== PREVIOUSLY GENERATED FRAMEWORKS (same venture — stay consistent, reuse their facts) ===\n${priorFrameworks
@@ -424,7 +543,9 @@ export function buildFrameworkPrompt(input: FrameworkPromptInput): { system: str
         .join("\n---\n")}`
     : "";
 
-  const validation = validationReport ? `\n\n=== VALIDATION REPORT (cross-reference hypotheses and evidence) ===\n${validationReport.slice(0, 4000)}` : "";
+  const validation = validationReport
+    ? `\n\n=== VALIDATION REPORT (cross-reference hypotheses and evidence) ===\n${validationReport.slice(0, 4000)}`
+    : "";
 
   const audit = deriveFrom
     ? `\n\n=== AUDIT MODE: DERIVE FROM ${deriveFrom.title.toUpperCase()} ===\nDo NOT start from the transcript. Audit the canvas below box by box: what it proves (strengths), what it leaves exposed (weaknesses), and which external windows and triggers it implies. The transcript is secondary evidence only.\n${docToMarkdown({ title: deriveFrom.title, framework: deriveFrom.framework, sections: deriveFrom.sections })}`
@@ -453,7 +574,13 @@ Every required section id must be present exactly once. Write specific, falsifia
   return { system, user };
 }
 
-export function buildRepairPrompt(framework: Framework, phase: string, doc: FrameworkDoc, issues: Issue[], contextPacket: string): { system: string; user: string; repairIds: string[] } {
+export function buildRepairPrompt(
+  framework: Framework,
+  phase: string,
+  doc: FrameworkDoc,
+  issues: Issue[],
+  contextPacket: string,
+): { system: string; user: string; repairIds: string[] } {
   const repairIds = sectionsNeedingRepair(framework, issues);
   const schemas = framework.schema.filter((s) => repairIds.includes(s.id));
   const label = frameworkLabel(framework, phase);
@@ -467,7 +594,10 @@ ${contextPacket}
 ${keep.map((s) => `## ${s.heading}\n${sectionToMarkdown(s)}`).join("\n\n") || "(none)"}
 
 === PROBLEMS TO FIX ===
-${issues.filter((i) => repairIds.includes(i.sectionId)).map((i) => `- [${i.sectionId}] ${i.problem}`).join("\n")}
+${issues
+  .filter((i) => repairIds.includes(i.sectionId))
+  .map((i) => `- [${i.sectionId}] ${i.problem}`)
+  .join("\n")}
 
 === FRAMEWORK RULES ===
 ${framework.chairInstruction}
@@ -478,7 +608,11 @@ ${describeSchema(schemas)}
 === OUTPUT CONTRACT ===
 Respond with STRICT JSON only: { "sections": [ { "id": string, "heading": string, "kind": string, "body": ... } ] } containing ONLY these ids: ${repairIds.join(", ")}.`;
 
-  return { system, user: `Regenerate only: ${repairIds.join(", ")}. Return strict JSON.`, repairIds };
+  return {
+    system,
+    user: `Regenerate only: ${repairIds.join(", ")}. Return strict JSON.`,
+    repairIds,
+  };
 }
 
 export function frameworkById(id: string): Framework {

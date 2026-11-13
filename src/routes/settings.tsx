@@ -6,7 +6,8 @@ export const Route = createFileRoute("/settings")({
       { title: "Settings & Keys — Boardroom" },
       {
         name: "description",
-        content: "Choose the AI provider for your board, manage keys and the data stored on this device.",
+        content:
+          "Choose the AI provider for your board, manage keys and the data stored on this device.",
       },
       { property: "og:title", content: "Settings & Keys — Boardroom" },
       {

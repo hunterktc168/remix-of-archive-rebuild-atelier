@@ -48,7 +48,12 @@ const ShellChrome = memo(function ShellChrome() {
               aria-label="Close navigation drawer"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -68,12 +73,25 @@ const ShellChrome = memo(function ShellChrome() {
                   <span className="w-6 h-6 rounded bg-brass/15 text-brass-light font-semibold text-xs flex items-center justify-center shrink-0">
                     V
                   </span>
-                  <span id="sidebar-venture-name" className="text-sm font-medium text-slate-200 truncate">
+                  <span
+                    id="sidebar-venture-name"
+                    className="text-sm font-medium text-slate-200 truncate"
+                  >
                     Apex Robotics
                   </span>
                 </div>
-                <svg className="w-4 h-4 text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4 4 4-4" />
+                <svg
+                  className="w-4 h-4 text-muted shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 9l4 4 4-4"
+                  />
                 </svg>
               </button>
             </div>
@@ -81,14 +99,21 @@ const ShellChrome = memo(function ShellChrome() {
 
           <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
             <div>
-              <div className="text-[11px] font-semibold text-muted uppercase tracking-wider px-2 mb-2">Workspace</div>
+              <div className="text-[11px] font-semibold text-muted uppercase tracking-wider px-2 mb-2">
+                Workspace
+              </div>
               <nav className="space-y-1">
                 <a
                   href="/"
                   className="sidebar-nav-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-colors"
                   data-route="dashboard"
                 >
-                  <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-4 h-4 text-muted"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -103,7 +128,12 @@ const ShellChrome = memo(function ShellChrome() {
                   className="sidebar-nav-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-colors"
                   data-route="agents"
                 >
-                  <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-4 h-4 text-muted"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -135,7 +165,9 @@ const ShellChrome = memo(function ShellChrome() {
                     </span>
                     <div className="flex flex-col">
                       <span className="leading-tight">{p.label}</span>
-                      <span className="text-[11px] text-muted group-hover:text-slate-400">{p.hint}</span>
+                      <span className="text-[11px] text-muted group-hover:text-slate-400">
+                        {p.hint}
+                      </span>
                     </div>
                   </a>
                 ))}
@@ -149,14 +181,24 @@ const ShellChrome = memo(function ShellChrome() {
               className="sidebar-nav-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-white/5 transition-colors"
               data-route="settings"
             >
-              <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-4 h-4 text-muted"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
                 />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
               <span>Settings &amp; Keys</span>
             </a>
@@ -172,15 +214,26 @@ const ShellChrome = memo(function ShellChrome() {
                 aria-label="Open navigation drawer"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               </button>
               <div className="flex items-center gap-2.5 truncate">
-                <span id="topbar-venture" className="font-serif text-lg sm:text-xl text-slate-100 font-medium truncate">
+                <span
+                  id="topbar-venture"
+                  className="font-serif text-lg sm:text-xl text-slate-100 font-medium truncate"
+                >
                   Apex Robotics
                 </span>
                 <span className="text-muted/60 text-sm">/</span>
-                <span id="topbar-phase-badge" className="chip border-brass/40 text-brass-light bg-brass/10 text-xs py-0.5">
+                <span
+                  id="topbar-phase-badge"
+                  className="chip border-brass/40 text-brass-light bg-brass/10 text-xs py-0.5"
+                >
                   Dashboard
                 </span>
               </div>
@@ -198,9 +251,14 @@ const ShellChrome = memo(function ShellChrome() {
               />
             </div>
 
-            <aside id="right-rail" className="hidden xl:block w-72 shrink-0 border-l border-subtle p-6 bg-panel/30">
+            <aside
+              id="right-rail"
+              className="hidden xl:block w-72 shrink-0 border-l border-subtle p-6 bg-panel/30"
+            >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Board at the Table</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  Board at the Table
+                </h2>
                 <span id="right-rail-count" className="chip text-[10px] py-0 px-1.5 bg-subtle">
                   6 Active
                 </span>

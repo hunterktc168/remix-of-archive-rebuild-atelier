@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* Ported verbatim from the original Boardroom vanilla JS app; see src/boardroom/AGENTS.md. */
-import { navigateTo, replaceUrlSilently } from '../../nav';
+import { navigateTo, replaceUrlSilently } from "../../nav";
 /**
  * Settings View Module
  * Route: #/settings
@@ -10,16 +10,22 @@ import { navigateTo, replaceUrlSilently } from '../../nav';
  * and danger zone database tools.
  */
 
-import { getSetting, setSetting, resetAllData, dbSelfTest } from '../db';
-import { testConnection, MockProvider, OpenAIProvider, AnthropicProvider, GeminiProvider } from '../llm';
-import { DEFAULT_AGENTS } from '../agents';
+import { getSetting, setSetting, resetAllData, dbSelfTest } from "../db";
+import {
+  testConnection,
+  MockProvider,
+  OpenAIProvider,
+  AnthropicProvider,
+  GeminiProvider,
+} from "../llm";
+import { DEFAULT_AGENTS } from "../agents";
 
 // Tracks the active document-level Escape listener so re-renders don't leak listeners.
 let escapeKeyHandler = null;
 
 export async function render(container, params = {}) {
   // Update Topbar action slot
-  const actionSlot = document.getElementById('topbar-action-slot');
+  const actionSlot = document.getElementById("topbar-action-slot");
   if (actionSlot) {
     actionSlot.innerHTML = `
       <button id="save-settings-topbar-btn" class="btn btn-primary text-xs py-1.5 px-3">
@@ -34,19 +40,21 @@ export async function render(container, params = {}) {
   // Load persisted settings (mock default).
   // Prefer the active provider's own slot (what llm.js getProvider() actually uses),
   // then fall back to the generic slot for legacy installs.
-  const provider = await getSetting('llm_provider_type', 'mock');
-  const apiKey = (await getSetting(`${provider}_api_key`, '')) || (await getSetting('llm_api_key', ''));
-  const baseUrl = (await getSetting(`${provider}_base_url`, '')) || (await getSetting('llm_base_url', ''));
-  const model = (await getSetting(`${provider}_model`, '')) || (await getSetting('llm_model', ''));
-  const temperature = parseFloat(await getSetting('llm_temperature', '0.7'));
-  const maxTokens = parseInt(await getSetting('llm_max_tokens', '2048'), 10);
+  const provider = await getSetting("llm_provider_type", "mock");
+  const apiKey =
+    (await getSetting(`${provider}_api_key`, "")) || (await getSetting("llm_api_key", ""));
+  const baseUrl =
+    (await getSetting(`${provider}_base_url`, "")) || (await getSetting("llm_base_url", ""));
+  const model = (await getSetting(`${provider}_model`, "")) || (await getSetting("llm_model", ""));
+  const temperature = parseFloat(await getSetting("llm_temperature", "0.7"));
+  const maxTokens = parseInt(await getSetting("llm_max_tokens", "2048"), 10);
 
   // Default placeholders per provider
   const defaultsByProvider = {
-    mock: { url: 'Local In-Memory (No Network)', model: 'Deterministic Persona Generator' },
-    openai: { url: 'https://api.openai.com/v1', model: 'gpt-4o' },
-    anthropic: { url: 'https://api.anthropic.com', model: 'claude-3-7-sonnet-20250219' },
-    gemini: { url: 'https://generativelanguage.googleapis.com', model: 'gemini-3.8-flash' },
+    mock: { url: "Local In-Memory (No Network)", model: "Deterministic Persona Generator" },
+    openai: { url: "https://api.openai.com/v1", model: "gpt-4o" },
+    anthropic: { url: "https://api.anthropic.com", model: "claude-3-7-sonnet-20250219" },
+    gemini: { url: "https://generativelanguage.googleapis.com", model: "gemini-3.8-flash" },
   };
 
   const currentDefaults = defaultsByProvider[provider] || defaultsByProvider.mock;
@@ -109,15 +117,17 @@ export async function render(container, params = {}) {
                 Active Provider
               </label>
               <select id="provider-select" class="input text-xs font-medium bg-base">
-                <option value="mock" ${provider === 'mock' ? 'selected' : ''}>Mock (Offline Demo — No Network/Keys)</option>
-                <option value="openai" ${provider === 'openai' ? 'selected' : ''}>OpenAI-Compatible (/chat/completions)</option>
-                <option value="anthropic" ${provider === 'anthropic' ? 'selected' : ''}>Anthropic Claude (/v1/messages)</option>
-                <option value="gemini" ${provider === 'gemini' ? 'selected' : ''}>Google Gemini (streamGenerateContent)</option>
+                <option value="mock" ${provider === "mock" ? "selected" : ""}>Mock (Offline Demo — No Network/Keys)</option>
+                <option value="openai" ${provider === "openai" ? "selected" : ""}>OpenAI-Compatible (/chat/completions)</option>
+                <option value="anthropic" ${provider === "anthropic" ? "selected" : ""}>Anthropic Claude (/v1/messages)</option>
+                <option value="gemini" ${provider === "gemini" ? "selected" : ""}>Google Gemini (streamGenerateContent)</option>
               </select>
               <span id="provider-hint" class="text-[11px] text-faint mt-1 block leading-relaxed">
-                ${provider === 'mock' 
-                  ? 'Runs 100% offline with deterministic, persona-aware replies echoing your venture and last message.' 
-                  : 'Connects directly to the specified model endpoint via browser fetch and SSE streaming.'}
+                ${
+                  provider === "mock"
+                    ? "Runs 100% offline with deterministic, persona-aware replies echoing your venture and last message."
+                    : "Connects directly to the specified model endpoint via browser fetch and SSE streaming."
+                }
               </span>
             </div>
 
@@ -137,12 +147,12 @@ export async function render(container, params = {}) {
                   id="api-key-input" 
                   class="input font-mono text-xs pr-20" 
                   value="${apiKey}" 
-                  placeholder="${provider === 'mock' ? 'No key required for Mock provider' : 'Paste API key here...'}" 
-                  ${provider === 'mock' ? 'disabled' : ''} 
+                  placeholder="${provider === "mock" ? "No key required for Mock provider" : "Paste API key here..."}" 
+                  ${provider === "mock" ? "disabled" : ""} 
                 />
               </div>
               <span id="key-hint" class="text-[11px] text-faint mt-1 block">
-                ${provider === 'mock' ? 'Mock engine does not require an API key.' : 'Stored strictly in local client IndexedDB.'}
+                ${provider === "mock" ? "Mock engine does not require an API key." : "Stored strictly in local client IndexedDB."}
               </span>
             </div>
           </div>
@@ -159,7 +169,7 @@ export async function render(container, params = {}) {
                 class="input font-mono text-xs" 
                 value="${baseUrl}" 
                 placeholder="${currentDefaults.url}" 
-                ${provider === 'mock' ? 'disabled' : ''} 
+                ${provider === "mock" ? "disabled" : ""} 
               />
               <span id="base-url-hint" class="text-[11px] text-faint mt-1 block">
                 Default: ${currentDefaults.url}
@@ -176,7 +186,7 @@ export async function render(container, params = {}) {
                 class="input font-mono text-xs" 
                 value="${model}" 
                 placeholder="${currentDefaults.model}" 
-                ${provider === 'mock' ? 'disabled' : ''} 
+                ${provider === "mock" ? "disabled" : ""} 
               />
               <span id="model-hint" class="text-[11px] text-faint mt-1 block">
                 Default: ${currentDefaults.model}
@@ -335,58 +345,61 @@ export async function render(container, params = {}) {
  * Attach form event handlers
  */
 function wireSettingsEvents(container, defaultsByProvider) {
-  const form = document.getElementById('settings-form');
-  const topbarSaveBtn = document.getElementById('save-settings-topbar-btn');
-  const providerSelect = document.getElementById('provider-select');
-  const apiKeyInput = document.getElementById('api-key-input');
-  const toggleKeyBtn = document.getElementById('toggle-key-visibility-btn');
-  const baseUrlInput = document.getElementById('base-url-input');
-  const modelInput = document.getElementById('model-input');
-  const tempSlider = document.getElementById('temperature-slider');
-  const tempDisplay = document.getElementById('temp-display');
-  const activeChip = document.getElementById('active-provider-chip');
-  const providerHint = document.getElementById('provider-hint');
-  const keyHint = document.getElementById('key-hint');
-  const baseUrlHint = document.getElementById('base-url-hint');
-  const modelHint = document.getElementById('model-hint');
+  const form = document.getElementById("settings-form");
+  const topbarSaveBtn = document.getElementById("save-settings-topbar-btn");
+  const providerSelect = document.getElementById("provider-select");
+  const apiKeyInput = document.getElementById("api-key-input");
+  const toggleKeyBtn = document.getElementById("toggle-key-visibility-btn");
+  const baseUrlInput = document.getElementById("base-url-input");
+  const modelInput = document.getElementById("model-input");
+  const tempSlider = document.getElementById("temperature-slider");
+  const tempDisplay = document.getElementById("temp-display");
+  const activeChip = document.getElementById("active-provider-chip");
+  const providerHint = document.getElementById("provider-hint");
+  const keyHint = document.getElementById("key-hint");
+  const baseUrlHint = document.getElementById("base-url-hint");
+  const modelHint = document.getElementById("model-hint");
 
   // Temperature slider listener
   if (tempSlider && tempDisplay) {
-    tempSlider.addEventListener('input', (e) => {
+    tempSlider.addEventListener("input", (e) => {
       tempDisplay.textContent = parseFloat(e.target.value).toFixed(2);
     });
   }
 
   // Provider dropdown change
   if (providerSelect) {
-    providerSelect.addEventListener('change', async (e) => {
+    providerSelect.addEventListener("change", async (e) => {
       const p = e.target.value;
       const defs = defaultsByProvider[p] || defaultsByProvider.mock;
 
       if (activeChip) activeChip.textContent = `Selected: ${p.toUpperCase()}`;
 
-      if (p === 'mock') {
+      if (p === "mock") {
         apiKeyInput.disabled = true;
         baseUrlInput.disabled = true;
         modelInput.disabled = true;
-        apiKeyInput.placeholder = 'No key required for Mock provider';
-        if (providerHint) providerHint.textContent = 'Runs 100% offline with deterministic, persona-aware replies echoing your venture and last message.';
-        if (keyHint) keyHint.textContent = 'Mock engine does not require an API key.';
+        apiKeyInput.placeholder = "No key required for Mock provider";
+        if (providerHint)
+          providerHint.textContent =
+            "Runs 100% offline with deterministic, persona-aware replies echoing your venture and last message.";
+        if (keyHint) keyHint.textContent = "Mock engine does not require an API key.";
       } else {
         apiKeyInput.disabled = false;
         baseUrlInput.disabled = false;
         modelInput.disabled = false;
-        apiKeyInput.placeholder = 'Paste API key here...';
-        if (providerHint) providerHint.textContent = `Connects directly to ${p} via browser fetch and SSE streaming.`;
-        if (keyHint) keyHint.textContent = 'Stored strictly in local client IndexedDB.';
+        apiKeyInput.placeholder = "Paste API key here...";
+        if (providerHint)
+          providerHint.textContent = `Connects directly to ${p} via browser fetch and SSE streaming.`;
+        if (keyHint) keyHint.textContent = "Stored strictly in local client IndexedDB.";
       }
 
       // Repopulate fields from the selected provider's own slot so keys/URLs/models
       // round-trip per provider instead of leaking across providers.
-      const storedKey = await getSetting(`${p}_api_key`, '');
-      const storedBase = await getSetting(`${p}_base_url`, '');
-      const storedModel = await getSetting(`${p}_model`, '');
-      if (apiKeyInput) apiKeyInput.value = p === 'mock' ? '' : storedKey;
+      const storedKey = await getSetting(`${p}_api_key`, "");
+      const storedBase = await getSetting(`${p}_base_url`, "");
+      const storedModel = await getSetting(`${p}_model`, "");
+      if (apiKeyInput) apiKeyInput.value = p === "mock" ? "" : storedKey;
       if (baseUrlInput) baseUrlInput.value = storedBase;
       if (modelInput) modelInput.value = storedModel;
 
@@ -399,53 +412,53 @@ function wireSettingsEvents(container, defaultsByProvider) {
 
   // Toggle API key masking
   if (toggleKeyBtn && apiKeyInput) {
-    toggleKeyBtn.addEventListener('click', () => {
-      if (apiKeyInput.type === 'password') {
-        apiKeyInput.type = 'text';
-        toggleKeyBtn.textContent = 'Hide';
+    toggleKeyBtn.addEventListener("click", () => {
+      if (apiKeyInput.type === "password") {
+        apiKeyInput.type = "text";
+        toggleKeyBtn.textContent = "Hide";
       } else {
-        apiKeyInput.type = 'password';
-        toggleKeyBtn.textContent = 'Show';
+        apiKeyInput.type = "password";
+        toggleKeyBtn.textContent = "Show";
       }
     });
   }
 
   // Save Settings Routine
   async function saveSettings() {
-    const selectedProvider = providerSelect ? providerSelect.value : 'mock';
-    const keyVal = apiKeyInput ? apiKeyInput.value.trim() : '';
-    const baseUrlVal = baseUrlInput ? baseUrlInput.value.trim() : '';
-    const modelVal = modelInput ? modelInput.value.trim() : '';
-    const tempVal = tempSlider ? tempSlider.value : '0.7';
-    const maxTokensVal = document.getElementById('max-tokens-input')?.value || '2048';
+    const selectedProvider = providerSelect ? providerSelect.value : "mock";
+    const keyVal = apiKeyInput ? apiKeyInput.value.trim() : "";
+    const baseUrlVal = baseUrlInput ? baseUrlInput.value.trim() : "";
+    const modelVal = modelInput ? modelInput.value.trim() : "";
+    const tempVal = tempSlider ? tempSlider.value : "0.7";
+    const maxTokensVal = document.getElementById("max-tokens-input")?.value || "2048";
 
-    await setSetting('llm_provider_type', selectedProvider);
-    await setSetting('llm_api_key', keyVal);
-    await setSetting('llm_base_url', baseUrlVal);
-    await setSetting('llm_model', modelVal);
-    await setSetting('llm_temperature', tempVal);
-    await setSetting('llm_max_tokens', maxTokensVal);
+    await setSetting("llm_provider_type", selectedProvider);
+    await setSetting("llm_api_key", keyVal);
+    await setSetting("llm_base_url", baseUrlVal);
+    await setSetting("llm_model", modelVal);
+    await setSetting("llm_temperature", tempVal);
+    await setSetting("llm_max_tokens", maxTokensVal);
 
     // Also sync provider-specific slots for seamless backward-compatibility
-    if (selectedProvider === 'openai') {
-      await setSetting('openai_api_key', keyVal);
-      if (baseUrlVal) await setSetting('openai_base_url', baseUrlVal);
-      if (modelVal) await setSetting('openai_model', modelVal);
-    } else if (selectedProvider === 'anthropic') {
-      await setSetting('anthropic_api_key', keyVal);
-      if (baseUrlVal) await setSetting('anthropic_base_url', baseUrlVal);
-      if (modelVal) await setSetting('anthropic_model', modelVal);
-    } else if (selectedProvider === 'gemini') {
-      await setSetting('gemini_api_key', keyVal);
-      if (baseUrlVal) await setSetting('gemini_base_url', baseUrlVal);
-      if (modelVal) await setSetting('gemini_model', modelVal);
+    if (selectedProvider === "openai") {
+      await setSetting("openai_api_key", keyVal);
+      if (baseUrlVal) await setSetting("openai_base_url", baseUrlVal);
+      if (modelVal) await setSetting("openai_model", modelVal);
+    } else if (selectedProvider === "anthropic") {
+      await setSetting("anthropic_api_key", keyVal);
+      if (baseUrlVal) await setSetting("anthropic_base_url", baseUrlVal);
+      if (modelVal) await setSetting("anthropic_model", modelVal);
+    } else if (selectedProvider === "gemini") {
+      await setSetting("gemini_api_key", keyVal);
+      if (baseUrlVal) await setSetting("gemini_base_url", baseUrlVal);
+      if (modelVal) await setSetting("gemini_model", modelVal);
     }
 
     showSaveFeedback();
   }
 
   function showSaveFeedback() {
-    const pill = document.getElementById('connection-status-pill');
+    const pill = document.getElementById("connection-status-pill");
     if (pill) {
       pill.innerHTML = `
         <span class="text-success inline-flex items-center gap-1 font-medium animate-fadeIn">
@@ -456,95 +469,97 @@ function wireSettingsEvents(container, defaultsByProvider) {
         </span>
       `;
       setTimeout(() => {
-        pill.innerHTML = '';
+        pill.innerHTML = "";
       }, 3500);
     }
   }
 
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       await saveSettings();
     });
   }
 
   if (topbarSaveBtn) {
-    topbarSaveBtn.addEventListener('click', async () => {
+    topbarSaveBtn.addEventListener("click", async () => {
       await saveSettings();
     });
   }
 
   // Forget Key Modal Wiring
-  const forgetKeyBtn = document.getElementById('forget-key-btn');
-  const forgetModal = document.getElementById('forget-key-modal');
-  const cancelForgetBtn = document.getElementById('cancel-forget-key-btn');
-  const confirmForgetBtn = document.getElementById('confirm-forget-key-btn');
+  const forgetKeyBtn = document.getElementById("forget-key-btn");
+  const forgetModal = document.getElementById("forget-key-modal");
+  const cancelForgetBtn = document.getElementById("cancel-forget-key-btn");
+  const confirmForgetBtn = document.getElementById("confirm-forget-key-btn");
 
   if (forgetKeyBtn && forgetModal) {
-    forgetKeyBtn.addEventListener('click', () => {
-      forgetModal.classList.remove('hidden');
+    forgetKeyBtn.addEventListener("click", () => {
+      forgetModal.classList.remove("hidden");
     });
 
-    cancelForgetBtn?.addEventListener('click', () => {
-      forgetModal.classList.add('hidden');
+    cancelForgetBtn?.addEventListener("click", () => {
+      forgetModal.classList.add("hidden");
     });
 
     // Close on backdrop click (inner panel stops propagation via onclick)
-    forgetModal.addEventListener('click', (e) => {
-      if (e.target === forgetModal) forgetModal.classList.add('hidden');
+    forgetModal.addEventListener("click", (e) => {
+      if (e.target === forgetModal) forgetModal.classList.add("hidden");
     });
 
-    confirmForgetBtn?.addEventListener('click', async () => {
-      forgetModal.classList.add('hidden');
-      await setSetting('llm_api_key', '');
-      await setSetting('openai_api_key', '');
-      await setSetting('anthropic_api_key', '');
-      await setSetting('gemini_api_key', '');
+    confirmForgetBtn?.addEventListener("click", async () => {
+      forgetModal.classList.add("hidden");
+      await setSetting("llm_api_key", "");
+      await setSetting("openai_api_key", "");
+      await setSetting("anthropic_api_key", "");
+      await setSetting("gemini_api_key", "");
 
-      if (apiKeyInput) apiKeyInput.value = '';
+      if (apiKeyInput) apiKeyInput.value = "";
 
-      const pill = document.getElementById('connection-status-pill');
+      const pill = document.getElementById("connection-status-pill");
       if (pill) {
         pill.innerHTML = `<span class="text-brass-light font-medium">✓ API keys wiped from browser storage.</span>`;
-        setTimeout(() => { pill.innerHTML = ''; }, 3000);
+        setTimeout(() => {
+          pill.innerHTML = "";
+        }, 3000);
       }
     });
   }
 
   // Test Connection Button (1-token ping)
-  const testConnBtn = document.getElementById('test-connection-btn');
+  const testConnBtn = document.getElementById("test-connection-btn");
   if (testConnBtn) {
-    testConnBtn.addEventListener('click', async () => {
-      const pill = document.getElementById('connection-status-pill');
+    testConnBtn.addEventListener("click", async () => {
+      const pill = document.getElementById("connection-status-pill");
       if (pill) {
         pill.innerHTML = `<span class="text-slate-300 animate-pulse">Pinging 1-token test probe...</span>`;
       }
       testConnBtn.disabled = true;
 
-      const selectedProvider = providerSelect ? providerSelect.value : 'mock';
-      const keyVal = apiKeyInput ? apiKeyInput.value.trim() : '';
-      const baseUrlVal = baseUrlInput ? baseUrlInput.value.trim() : '';
-      const modelVal = modelInput ? modelInput.value.trim() : '';
+      const selectedProvider = providerSelect ? providerSelect.value : "mock";
+      const keyVal = apiKeyInput ? apiKeyInput.value.trim() : "";
+      const baseUrlVal = baseUrlInput ? baseUrlInput.value.trim() : "";
+      const modelVal = modelInput ? modelInput.value.trim() : "";
 
       let providerInstance = null;
-      if (selectedProvider === 'mock') {
+      if (selectedProvider === "mock") {
         providerInstance = new MockProvider();
-      } else if (selectedProvider === 'openai') {
+      } else if (selectedProvider === "openai") {
         providerInstance = new OpenAIProvider({
-          baseURL: baseUrlVal || 'https://api.openai.com/v1',
+          baseURL: baseUrlVal || "https://api.openai.com/v1",
           apiKey: keyVal,
-          model: modelVal || 'gpt-4o'
+          model: modelVal || "gpt-4o",
         });
-      } else if (selectedProvider === 'anthropic') {
+      } else if (selectedProvider === "anthropic") {
         providerInstance = new AnthropicProvider({
-          baseURL: baseUrlVal || 'https://api.anthropic.com',
+          baseURL: baseUrlVal || "https://api.anthropic.com",
           apiKey: keyVal,
-          model: modelVal || 'claude-3-7-sonnet-20250219'
+          model: modelVal || "claude-3-7-sonnet-20250219",
         });
-      } else if (selectedProvider === 'gemini') {
+      } else if (selectedProvider === "gemini") {
         providerInstance = new GeminiProvider({
           apiKey: keyVal,
-          model: modelVal || 'gemini-3.8-flash'
+          model: modelVal || "gemini-3.8-flash",
         });
       }
 
@@ -562,11 +577,11 @@ function wireSettingsEvents(container, defaultsByProvider) {
   }
 
   // DB Self-Test Button
-  const dbTestBtn = document.getElementById('db-selftest-btn');
-  const diagnosticLog = document.getElementById('diagnostic-log');
+  const dbTestBtn = document.getElementById("db-selftest-btn");
+  const diagnosticLog = document.getElementById("diagnostic-log");
   if (dbTestBtn && diagnosticLog) {
-    dbTestBtn.addEventListener('click', async () => {
-      diagnosticLog.classList.remove('hidden');
+    dbTestBtn.addEventListener("click", async () => {
+      diagnosticLog.classList.remove("hidden");
       diagnosticLog.innerHTML = `<span class="text-slate-400 animate-pulse">Executing IndexedDB self-test...</span>`;
 
       const result = await dbSelfTest();
@@ -585,52 +600,52 @@ function wireSettingsEvents(container, defaultsByProvider) {
   }
 
   // Danger Zone: Delete All Data Modal Wiring (Double Confirmation without browser dialogs)
-  const deleteAllBtn = document.getElementById('delete-all-data-btn');
-  const deleteModal = document.getElementById('delete-all-modal');
-  const cancelDeleteBtn = document.getElementById('cancel-delete-all-btn');
-  const confirmDeleteBtn = document.getElementById('confirm-delete-all-btn');
-  const deleteInput = document.getElementById('delete-confirm-input');
-  const deleteErrorMsg = document.getElementById('delete-error-msg');
+  const deleteAllBtn = document.getElementById("delete-all-data-btn");
+  const deleteModal = document.getElementById("delete-all-modal");
+  const cancelDeleteBtn = document.getElementById("cancel-delete-all-btn");
+  const confirmDeleteBtn = document.getElementById("confirm-delete-all-btn");
+  const deleteInput = document.getElementById("delete-confirm-input");
+  const deleteErrorMsg = document.getElementById("delete-error-msg");
 
   if (deleteAllBtn && deleteModal) {
-    deleteAllBtn.addEventListener('click', () => {
-      if (deleteInput) deleteInput.value = '';
-      if (deleteErrorMsg) deleteErrorMsg.classList.add('hidden');
-      deleteModal.classList.remove('hidden');
+    deleteAllBtn.addEventListener("click", () => {
+      if (deleteInput) deleteInput.value = "";
+      if (deleteErrorMsg) deleteErrorMsg.classList.add("hidden");
+      deleteModal.classList.remove("hidden");
       deleteInput?.focus();
     });
 
-    cancelDeleteBtn?.addEventListener('click', () => {
-      deleteModal.classList.add('hidden');
+    cancelDeleteBtn?.addEventListener("click", () => {
+      deleteModal.classList.add("hidden");
     });
 
     // Close on backdrop click (inner panel stops propagation via onclick)
-    deleteModal.addEventListener('click', (e) => {
-      if (e.target === deleteModal) deleteModal.classList.add('hidden');
+    deleteModal.addEventListener("click", (e) => {
+      if (e.target === deleteModal) deleteModal.classList.add("hidden");
     });
 
-    confirmDeleteBtn?.addEventListener('click', async () => {
+    confirmDeleteBtn?.addEventListener("click", async () => {
       const confirmVal = deleteInput?.value.trim();
-      if (confirmVal === 'DELETE') {
-        deleteModal.classList.add('hidden');
+      if (confirmVal === "DELETE") {
+        deleteModal.classList.add("hidden");
         await resetAllData(DEFAULT_AGENTS);
-        window.dispatchEvent(new CustomEvent('boardroom:sync'));
-        navigateTo('/');
+        window.dispatchEvent(new CustomEvent("boardroom:sync"));
+        navigateTo("/");
       } else {
-        if (deleteErrorMsg) deleteErrorMsg.classList.remove('hidden');
+        if (deleteErrorMsg) deleteErrorMsg.classList.remove("hidden");
       }
     });
   }
 
   // Escape closes whichever settings modal is open (single shared listener, rebind-safe)
-  if (escapeKeyHandler) document.removeEventListener('keydown', escapeKeyHandler);
+  if (escapeKeyHandler) document.removeEventListener("keydown", escapeKeyHandler);
   escapeKeyHandler = (e) => {
-    if (e.key !== 'Escape') return;
-    if (forgetModal && !forgetModal.classList.contains('hidden')) {
-      forgetModal.classList.add('hidden');
-    } else if (deleteModal && !deleteModal.classList.contains('hidden')) {
-      deleteModal.classList.add('hidden');
+    if (e.key !== "Escape") return;
+    if (forgetModal && !forgetModal.classList.contains("hidden")) {
+      forgetModal.classList.add("hidden");
+    } else if (deleteModal && !deleteModal.classList.contains("hidden")) {
+      deleteModal.classList.add("hidden");
     }
   };
-  document.addEventListener('keydown', escapeKeyHandler);
+  document.addEventListener("keydown", escapeKeyHandler);
 }

@@ -6,7 +6,8 @@ export const Route = createFileRoute("/agents")({
       { title: "Board Members — Boardroom" },
       {
         name: "description",
-        content: "Meet the six directors and The Chair who advise your venture: innovation, validation, strategy, marketing, finance and product.",
+        content:
+          "Meet the six directors and The Chair who advise your venture: innovation, validation, strategy, marketing, finance and product.",
       },
       { property: "og:title", content: "Board Members — Boardroom" },
       {

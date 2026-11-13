@@ -21,39 +21,39 @@
  * 3. Milestone Deliverable Synthesis with The Chair.
  */
 
-import { stream, getProvider } from './llm';
+import { stream, getProvider } from "./llm";
 import {
   getAgent,
   THE_CHAIR,
   PHASE_AGENTS,
   DEFAULT_AGENTS,
   buildChairRoundSummaryPrompt,
-  buildDavidChallengePrompt
-} from './agents';
-import { getAll, put, saveVenture } from './db';
+  buildDavidChallengePrompt,
+} from "./agents";
+import { getAll, put, saveVenture } from "./db";
 
 /**
  * Derive a clean, concise round title from founder's prompt
  */
-export function deriveSessionTitle(text = '') {
+export function deriveSessionTitle(text = "") {
   const cleaned = text
-    .replace(/^["']|["']$/g, '')
-    .replace(/[#*`_]/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/^["']|["']$/g, "")
+    .replace(/[#*`_]/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 
-  if (!cleaned) return 'Strategic Deliberation Round';
+  if (!cleaned) return "Strategic Deliberation Round";
 
   // Extract first sentence or up to 60 characters
   const firstSentence = cleaned.split(/[.?!]\s/)[0];
-  const words = firstSentence.split(' ');
+  const words = firstSentence.split(" ");
 
   if (words.length <= 8) {
-    return firstSentence.length > 55 ? firstSentence.slice(0, 52) + '...' : firstSentence;
+    return firstSentence.length > 55 ? firstSentence.slice(0, 52) + "..." : firstSentence;
   }
 
-  const shortSlice = words.slice(0, 7).join(' ');
-  return shortSlice.length > 50 ? shortSlice.slice(0, 47) + '...' : shortSlice + '...';
+  const shortSlice = words.slice(0, 7).join(" ");
+  return shortSlice.length > 50 ? shortSlice.slice(0, 47) + "..." : shortSlice + "...";
 }
 
 /**
@@ -69,42 +69,43 @@ export async function singleAgentChat({
   onChunk,
   onMessageDone,
   onAgentSpeakingChange,
-  signal
+  signal,
 }) {
   const agent = getAgent(targetAgentId) || DEFAULT_AGENTS[0];
 
   // 1. Persist the user message (agentId = target)
   const userMsg = {
     id: `m_${Date.now()}_u`,
-    author: 'Founder',
-    role: 'user',
+    author: "Founder",
+    role: "user",
     agentId: agent.id,
     text: text,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
 
   session.messages = session.messages || [];
   session.messages.push(userMsg);
   session.updatedAt = Date.now();
-  await put('sessions', session);
+  await put("sessions", session);
 
   // 2. Prepare 1:1 Context:
   const trimmedTranscript = session.messages.slice(-12);
 
-  const systemPrompt = typeof agent.systemPromptTemplate === 'function'
-    ? agent.systemPromptTemplate({
-        venture,
-        phase: phase.id,
-        transcript: trimmedTranscript,
-        priorAgentReplies: [],
-        deliverable: null,
-        deliverableType: phase.deliverableType
-      })
-    : `You are ${agent.name}, ${agent.role}. Advise the founder directly.`;
+  const systemPrompt =
+    typeof agent.systemPromptTemplate === "function"
+      ? agent.systemPromptTemplate({
+          venture,
+          phase: phase.id,
+          transcript: trimmedTranscript,
+          priorAgentReplies: [],
+          deliverable: null,
+          deliverableType: phase.deliverableType,
+        })
+      : `You are ${agent.name}, ${agent.role}. Advise the founder directly.`;
 
-  const messages = trimmedTranscript.map(m => ({
-    role: m.role === 'user' ? 'user' : 'assistant',
-    content: m.text
+  const messages = trimmedTranscript.map((m) => ({
+    role: m.role === "user" ? "user" : "assistant",
+    content: m.text,
   }));
 
   // 3. Create agent placeholder message
@@ -113,9 +114,9 @@ export async function singleAgentChat({
     author: agent.name,
     agentId: agent.id,
     role: agent.shortRole,
-    text: '',
+    text: "",
     timestamp: Date.now(),
-    meta: null
+    meta: null,
   };
 
   session.messages.push(agentMsg);
@@ -131,11 +132,11 @@ export async function singleAgentChat({
       signal,
       meta: {
         agentId: agent.id,
-        action: 'chat',
+        action: "chat",
         venture,
         phase: phase.label,
-        founderText: text
-      }
+        founderText: text,
+      },
     });
 
     for await (const chunk of streamGen) {
@@ -144,17 +145,17 @@ export async function singleAgentChat({
       if (onChunk) onChunk(agentMsg.id, agentMsg.text);
     }
   } catch (err) {
-    if (signal?.aborted || err.name === 'AbortError') {
+    if (signal?.aborted || err.name === "AbortError") {
       if (!agentMsg.text) {
-        agentMsg.text = '*[Direct chat interrupted by founder]*';
+        agentMsg.text = "*[Direct chat interrupted by founder]*";
       } else {
-        agentMsg.text += ' *[Interrupted]*';
+        agentMsg.text += " *[Interrupted]*";
       }
       if (onChunk) onChunk(agentMsg.id, agentMsg.text);
     } else {
       if (!agentMsg.text) {
         session.messages.pop();
-        await put('sessions', session);
+        await put("sessions", session);
       }
       if (onAgentSpeakingChange) onAgentSpeakingChange(agent.id, false);
       throw err;
@@ -165,11 +166,11 @@ export async function singleAgentChat({
   const provider = await getProvider();
   agentMsg.meta = {
     provider: provider.name,
-    model: provider.model || (provider.name === 'mock' ? 'deterministic-sim' : 'default'),
-    timestamp: Date.now()
+    model: provider.model || (provider.name === "mock" ? "deterministic-sim" : "default"),
+    timestamp: Date.now(),
   };
 
-  await put('sessions', session);
+  await put("sessions", session);
 
   if (onMessageDone) onMessageDone(agentMsg);
   if (onAgentSpeakingChange) onAgentSpeakingChange(agent.id, false);
@@ -189,7 +190,7 @@ export async function regenerateLastAgentReply({
   onChunk,
   onMessageDone,
   onAgentSpeakingChange,
-  signal
+  signal,
 }) {
   const agent = getAgent(targetAgentId) || DEFAULT_AGENTS[0];
   const msgs = session.messages || [];
@@ -198,9 +199,9 @@ export async function regenerateLastAgentReply({
   let lastUserMsg = null;
 
   for (let i = msgs.length - 1; i >= 0; i--) {
-    if (lastAgentIdx === -1 && msgs[i].agentId === agent.id && msgs[i].role !== 'user') {
+    if (lastAgentIdx === -1 && msgs[i].agentId === agent.id && msgs[i].role !== "user") {
       lastAgentIdx = i;
-    } else if (lastAgentIdx !== -1 && (msgs[i].role === 'user' || msgs[i].author === 'Founder')) {
+    } else if (lastAgentIdx !== -1 && (msgs[i].role === "user" || msgs[i].author === "Founder")) {
       lastUserMsg = msgs[i];
       break;
     }
@@ -213,23 +214,26 @@ export async function regenerateLastAgentReply({
     msgs.splice(lastAgentIdx, 1);
   }
 
-  const promptText = lastUserMsg ? lastUserMsg.text : `Provide your analytical assessment for ${venture.name}.`;
+  const promptText = lastUserMsg
+    ? lastUserMsg.text
+    : `Provide your analytical assessment for ${venture.name}.`;
   const trimmedTranscript = msgs.slice(-12);
 
-  const systemPrompt = typeof agent.systemPromptTemplate === 'function'
-    ? agent.systemPromptTemplate({
-        venture,
-        phase: phase.id,
-        transcript: trimmedTranscript,
-        priorAgentReplies: [],
-        deliverable: null,
-        deliverableType: phase.deliverableType
-      })
-    : `You are ${agent.name}, ${agent.role}. Advise the founder directly.`;
+  const systemPrompt =
+    typeof agent.systemPromptTemplate === "function"
+      ? agent.systemPromptTemplate({
+          venture,
+          phase: phase.id,
+          transcript: trimmedTranscript,
+          priorAgentReplies: [],
+          deliverable: null,
+          deliverableType: phase.deliverableType,
+        })
+      : `You are ${agent.name}, ${agent.role}. Advise the founder directly.`;
 
-  const messages = trimmedTranscript.map(m => ({
-    role: m.role === 'user' ? 'user' : 'assistant',
-    content: m.text
+  const messages = trimmedTranscript.map((m) => ({
+    role: m.role === "user" ? "user" : "assistant",
+    content: m.text,
   }));
 
   const agentMsg = {
@@ -237,9 +241,9 @@ export async function regenerateLastAgentReply({
     author: agent.name,
     agentId: agent.id,
     role: agent.shortRole,
-    text: '',
+    text: "",
     timestamp: Date.now(),
-    meta: null
+    meta: null,
   };
 
   msgs.push(agentMsg);
@@ -256,11 +260,11 @@ export async function regenerateLastAgentReply({
       signal,
       meta: {
         agentId: agent.id,
-        action: 'chat',
+        action: "chat",
         venture,
         phase: phase.label,
-        founderText: promptText
-      }
+        founderText: promptText,
+      },
     });
 
     for await (const chunk of streamGen) {
@@ -269,8 +273,8 @@ export async function regenerateLastAgentReply({
       if (onChunk) onChunk(agentMsg.id, agentMsg.text);
     }
   } catch (err) {
-    if (signal?.aborted || err.name === 'AbortError') {
-      if (!agentMsg.text) agentMsg.text = '*[Regeneration interrupted]*';
+    if (signal?.aborted || err.name === "AbortError") {
+      if (!agentMsg.text) agentMsg.text = "*[Regeneration interrupted]*";
       if (onChunk) onChunk(agentMsg.id, agentMsg.text);
     } else {
       if (!agentMsg.text) {
@@ -279,7 +283,7 @@ export async function regenerateLastAgentReply({
         const placeholderIdx = session.messages.indexOf(agentMsg);
         if (placeholderIdx !== -1) session.messages.splice(placeholderIdx, 1);
         if (previousReply) session.messages.splice(previousReplyIdx, 0, previousReply);
-        await put('sessions', session);
+        await put("sessions", session);
       }
       if (onAgentSpeakingChange) onAgentSpeakingChange(agent.id, false);
       throw err;
@@ -289,11 +293,11 @@ export async function regenerateLastAgentReply({
   const provider = await getProvider();
   agentMsg.meta = {
     provider: provider.name,
-    model: provider.model || (provider.name === 'mock' ? 'deterministic-sim' : 'default'),
-    timestamp: Date.now()
+    model: provider.model || (provider.name === "mock" ? "deterministic-sim" : "default"),
+    timestamp: Date.now(),
   };
 
-  await put('sessions', session);
+  await put("sessions", session);
 
   if (onMessageDone) onMessageDone(agentMsg);
   if (onAgentSpeakingChange) onAgentSpeakingChange(agent.id, false);
@@ -324,24 +328,24 @@ export async function conveneDeliberationRound({
   onSpeakerError,
   onAgentSpeakingChange,
   onProgress,
-  signal
+  signal,
 }) {
   // 1. Identify which agents will participate and speaking order
-  const storedAgents = await getAll('agents');
-  const roster = (storedAgents && storedAgents.length > 0) ? storedAgents : DEFAULT_AGENTS;
+  const storedAgents = await getAll("agents");
+  const roster = storedAgents && storedAgents.length > 0 ? storedAgents : DEFAULT_AGENTS;
 
   let activeParticipants = [];
 
   if (Array.isArray(participants) && participants.length > 0) {
     activeParticipants = participants
-      .map(p => (typeof p === 'string' ? (roster.find(a => a.id === p) || getAgent(p)) : p))
+      .map((p) => (typeof p === "string" ? roster.find((a) => a.id === p) || getAgent(p) : p))
       .filter(Boolean)
-      .filter(a => a.enabled !== false && a.id !== 'chair');
+      .filter((a) => a.enabled !== false && a.id !== "chair");
   }
 
   if (activeParticipants.length === 0) {
-    const allowedIds = PHASE_AGENTS[phase.id] || ['maya', 'sam', 'david'];
-    activeParticipants = roster.filter(a => a.enabled && allowedIds.includes(a.id));
+    const allowedIds = PHASE_AGENTS[phase.id] || ["maya", "sam", "david"];
+    activeParticipants = roster.filter((a) => a.enabled && allowedIds.includes(a.id));
   }
 
   // 2. Initialize Round Record
@@ -351,10 +355,10 @@ export async function conveneDeliberationRound({
   const userMsg = {
     id: `m_${Date.now()}_u`,
     roundId,
-    author: 'Founder',
-    role: 'user',
+    author: "Founder",
+    role: "user",
     text: text,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
 
   session.messages = session.messages || [];
@@ -367,12 +371,12 @@ export async function conveneDeliberationRound({
     founderPrompt: text,
     startedAt: Date.now(),
     completedAt: null,
-    participantIds: activeParticipants.map(a => a.id),
-    participantCount: activeParticipants.length
+    participantIds: activeParticipants.map((a) => a.id),
+    participantCount: activeParticipants.length,
   };
   session.rounds.push(roundRecord);
   session.updatedAt = Date.now();
-  await put('sessions', session);
+  await put("sessions", session);
 
   if (onSessionStart) {
     onSessionStart({ roundId, roundTitle, participants: activeParticipants });
@@ -393,8 +397,13 @@ export async function conveneDeliberationRound({
     }
 
     // Handle "Pause after current speaker"
-    while (sessionControl?.pauseAfterCurrent && !sessionControl?.isStopped && !signal?.aborted && !sessionControl?.skipToChair) {
-      await new Promise(r => setTimeout(r, 200));
+    while (
+      sessionControl?.pauseAfterCurrent &&
+      !sessionControl?.isStopped &&
+      !signal?.aborted &&
+      !sessionControl?.skipToChair
+    ) {
+      await new Promise((r) => setTimeout(r, 200));
     }
 
     if (signal?.aborted || sessionControl?.isStopped) {
@@ -413,7 +422,7 @@ export async function conveneDeliberationRound({
         current: i + 1,
         total: activeParticipants.length,
         agentName: fullAgentDef.name,
-        agentId: fullAgentDef.id
+        agentId: fullAgentDef.id,
       });
     }
 
@@ -427,37 +436,35 @@ export async function conveneDeliberationRound({
       author: fullAgentDef.name,
       agentId: fullAgentDef.id,
       role: fullAgentDef.shortRole,
-      text: '',
+      text: "",
       timestamp: Date.now(),
       meta: null,
-      isError: false
+      isError: false,
     };
 
     session.messages.push(agentMsg);
     session.updatedAt = Date.now();
-    await put('sessions', session);
+    await put("sessions", session);
 
     if (onSpeakerStart) {
       onSpeakerStart(agentMsg);
     }
 
     // Build system prompt with context chaining
-    let systemPrompt = '';
-    if (typeof fullAgentDef.systemPromptTemplate === 'function') {
+    let systemPrompt = "";
+    if (typeof fullAgentDef.systemPromptTemplate === "function") {
       systemPrompt = fullAgentDef.systemPromptTemplate({
         venture,
         phase: phase.id,
         transcript: session.messages.slice(0, -1),
         priorAgentReplies: priorAgentReplies,
-        deliverableType: phase.deliverableType
+        deliverableType: phase.deliverableType,
       });
     } else {
       systemPrompt = `You are ${fullAgentDef.name}, ${fullAgentDef.role}.`;
     }
 
-    const messages = [
-      { role: 'user', content: text }
-    ];
+    const messages = [{ role: "user", content: text }];
 
     let speakerFailed = false;
 
@@ -468,12 +475,12 @@ export async function conveneDeliberationRound({
         signal,
         meta: {
           agentId: fullAgentDef.id,
-          action: 'deliberate',
+          action: "deliberate",
           venture,
           phase: phase.label,
           founderText: text,
-          priorSpeakers: priorAgentReplies.map(p => p.agentName)
-        }
+          priorSpeakers: priorAgentReplies.map((p) => p.agentName),
+        },
       });
 
       for await (const chunk of streamGen) {
@@ -485,26 +492,26 @@ export async function conveneDeliberationRound({
       }
     } catch (err) {
       speakerFailed = true;
-      if (err.name === 'AbortError' || signal?.aborted || sessionControl?.isStopped) {
+      if (err.name === "AbortError" || signal?.aborted || sessionControl?.isStopped) {
         if (!agentMsg.text) {
-          agentMsg.text = '*[Deliberation paused or stopped by founder]*';
+          agentMsg.text = "*[Deliberation paused or stopped by founder]*";
         } else {
-          agentMsg.text += ' *[Stopped]*';
+          agentMsg.text += " *[Stopped]*";
         }
         if (onChunk) onChunk(agentMsg.id, agentMsg.text);
       } else {
         console.error(`Orchestrator error for director ${fullAgentDef.name}:`, err);
         agentMsg.isError = true;
-        agentMsg.errorMessage = err.message || 'Director failed to respond';
+        agentMsg.errorMessage = err.message || "Director failed to respond";
         agentMsg.retryPayload = {
           ventureId: venture.id,
           phaseId: phase.id,
           roundId,
           founderText: text,
-          agentId: fullAgentDef.id
+          agentId: fullAgentDef.id,
         };
         if (!agentMsg.text) {
-          agentMsg.text = `*[Director Consultation Error: ${err.message || 'Connection failure'}]*`;
+          agentMsg.text = `*[Director Consultation Error: ${err.message || "Connection failure"}]*`;
         }
         if (onChunk) onChunk(agentMsg.id, agentMsg.text);
         if (onSpeakerError) onSpeakerError(agentMsg, err);
@@ -514,11 +521,11 @@ export async function conveneDeliberationRound({
     const provider = await getProvider();
     agentMsg.meta = {
       provider: provider.name,
-      model: provider.model || (provider.name === 'mock' ? 'deterministic-sim' : 'default'),
-      timestamp: Date.now()
+      model: provider.model || (provider.name === "mock" ? "deterministic-sim" : "default"),
+      timestamp: Date.now(),
     };
 
-    await put('sessions', session);
+    await put("sessions", session);
 
     if (onSpeakerDone) {
       onSpeakerDone(agentMsg);
@@ -531,24 +538,25 @@ export async function conveneDeliberationRound({
       priorAgentReplies.push({
         agentName: fullAgentDef.name,
         shortRole: fullAgentDef.shortRole,
-        content: agentMsg.text
+        content: agentMsg.text,
       });
     }
 
     // Pacing delay between speakers (~400ms)
     if (i < activeParticipants.length - 1 && !(signal?.aborted || sessionControl?.isStopped)) {
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 400));
     }
   }
 
   // Clear all speaking pulse states
   if (onAgentSpeakingChange) {
-    activeParticipants.forEach(a => onAgentSpeakingChange(a.id, false));
+    activeParticipants.forEach((a) => onAgentSpeakingChange(a.id, false));
   }
 
   // 4. The Chair "Round Summary"
   // Run if not stopped cold without any speaker, or if founder skipped to chair
-  const shouldRunChair = !(signal?.aborted || sessionControl?.isStopped) || sessionControl?.skipToChair;
+  const shouldRunChair =
+    !(signal?.aborted || sessionControl?.isStopped) || sessionControl?.skipToChair;
   const hasSubstance = priorAgentReplies.length > 0 || sessionControl?.skipToChair;
 
   if (shouldRunChair && hasSubstance) {
@@ -557,32 +565,32 @@ export async function conveneDeliberationRound({
         roundId,
         current: activeParticipants.length,
         total: activeParticipants.length,
-        agentName: 'The Chair',
-        agentId: 'chair',
-        isChairSummary: true
+        agentName: "The Chair",
+        agentId: "chair",
+        isChairSummary: true,
       });
     }
 
     if (onAgentSpeakingChange) {
-      onAgentSpeakingChange('chair', true);
+      onAgentSpeakingChange("chair", true);
     }
 
     const chairMsg = {
       id: `m_${Date.now()}_chair`,
       roundId,
-      author: 'The Chair',
-      agentId: 'chair',
-      role: 'Board Chair',
-      text: '',
+      author: "The Chair",
+      agentId: "chair",
+      role: "Board Chair",
+      text: "",
       isRoundSummary: true,
       timestamp: Date.now(),
       meta: null,
-      isError: false
+      isError: false,
     };
 
     session.messages.push(chairMsg);
     session.updatedAt = Date.now();
-    await put('sessions', session);
+    await put("sessions", session);
 
     if (onSpeakerStart) {
       onSpeakerStart(chairMsg);
@@ -593,21 +601,26 @@ export async function conveneDeliberationRound({
       phase: phase.id,
       founderPrompt: text,
       transcript: session.messages.slice(0, -1),
-      priorAgentReplies
+      priorAgentReplies,
     });
 
     try {
       const streamGen = stream({
         system: chairPrompt,
-        messages: [{ role: 'user', content: `Please deliver the executive Round Summary for this deliberation.` }],
+        messages: [
+          {
+            role: "user",
+            content: `Please deliver the executive Round Summary for this deliberation.`,
+          },
+        ],
         signal,
         meta: {
-          agentId: 'chair',
-          action: 'round_summary',
+          agentId: "chair",
+          action: "round_summary",
           venture,
           phase: phase.label,
-          founderText: text
-        }
+          founderText: text,
+        },
       });
 
       for await (const chunk of streamGen) {
@@ -618,7 +631,7 @@ export async function conveneDeliberationRound({
         }
       }
     } catch (err) {
-      console.error('The Chair Round Summary error:', err);
+      console.error("The Chair Round Summary error:", err);
       chairMsg.isError = true;
       chairMsg.errorMessage = err.message;
       if (!chairMsg.text) {
@@ -631,24 +644,24 @@ export async function conveneDeliberationRound({
     const provider = await getProvider();
     chairMsg.meta = {
       provider: provider.name,
-      model: provider.model || (provider.name === 'mock' ? 'deterministic-sim' : 'default'),
-      timestamp: Date.now()
+      model: provider.model || (provider.name === "mock" ? "deterministic-sim" : "default"),
+      timestamp: Date.now(),
     };
 
-    await put('sessions', session);
+    await put("sessions", session);
 
     if (onSpeakerDone) {
       onSpeakerDone(chairMsg);
     }
     if (onAgentSpeakingChange) {
-      onAgentSpeakingChange('chair', false);
+      onAgentSpeakingChange("chair", false);
     }
   }
 
   // 5. Finalize Round Record
   roundRecord.completedAt = Date.now();
   session.updatedAt = Date.now();
-  await put('sessions', session);
+  await put("sessions", session);
 
   return session;
 }
@@ -668,31 +681,31 @@ export async function challengeClaimWithDavid({
   onStart,
   onChunk,
   onDone,
-  signal
+  signal,
 }) {
-  const targetMsg = (session.messages || []).find(m => m.id === messageId);
+  const targetMsg = (session.messages || []).find((m) => m.id === messageId);
   if (!targetMsg) {
     throw new Error(`Target message ${messageId} not found in session.`);
   }
 
-  const david = getAgent('david') || DEFAULT_AGENTS[1];
+  const david = getAgent("david") || DEFAULT_AGENTS[1];
 
   const challengeObj = {
     id: `ch_${Date.now()}`,
     author: david.name,
-    agentId: 'david',
+    agentId: "david",
     role: david.shortRole,
     targetMessageId: messageId,
     targetAgentName: agentName,
     claimText: claimText,
-    text: '',
+    text: "",
     timestamp: Date.now(),
-    meta: null
+    meta: null,
   };
 
   targetMsg.challenge = challengeObj;
   session.updatedAt = Date.now();
-  await put('sessions', session);
+  await put("sessions", session);
 
   if (onStart) onStart(challengeObj);
 
@@ -701,11 +714,11 @@ export async function challengeClaimWithDavid({
     phase: phase.id,
     agentName,
     claimText,
-    transcript: session.messages || []
+    transcript: session.messages || [],
   });
 
   const messages = [
-    { role: 'user', content: `Interrogate this claim by ${agentName}: "${claimText}"` }
+    { role: "user", content: `Interrogate this claim by ${agentName}: "${claimText}"` },
   ];
 
   try {
@@ -714,13 +727,13 @@ export async function challengeClaimWithDavid({
       messages,
       signal,
       meta: {
-        agentId: 'david',
-        action: 'challenge',
+        agentId: "david",
+        action: "challenge",
         venture,
         phase: phase.label,
         targetSpeaker: agentName,
-        claimText
-      }
+        claimText,
+      },
     });
 
     for await (const chunk of streamGen) {
@@ -729,8 +742,8 @@ export async function challengeClaimWithDavid({
       if (onChunk) onChunk(challengeObj.id, challengeObj.text);
     }
   } catch (err) {
-    if (signal?.aborted || err.name === 'AbortError') {
-      if (!challengeObj.text) challengeObj.text = '*[Interrogation stopped]*';
+    if (signal?.aborted || err.name === "AbortError") {
+      if (!challengeObj.text) challengeObj.text = "*[Interrogation stopped]*";
       if (onChunk) onChunk(challengeObj.id, challengeObj.text);
     } else {
       challengeObj.text += `\n\n*[Interrogation error: ${err.message}]*`;
@@ -742,11 +755,11 @@ export async function challengeClaimWithDavid({
   const provider = await getProvider();
   challengeObj.meta = {
     provider: provider.name,
-    model: provider.model || (provider.name === 'mock' ? 'deterministic-sim' : 'default'),
-    timestamp: Date.now()
+    model: provider.model || (provider.name === "mock" ? "deterministic-sim" : "default"),
+    timestamp: Date.now(),
   };
 
-  await put('sessions', session);
+  await put("sessions", session);
 
   if (onDone) onDone(challengeObj);
 
@@ -764,9 +777,9 @@ export async function retrySpeakerInRound({
   onStart,
   onChunk,
   onDone,
-  signal
+  signal,
 }) {
-  const targetMsg = (session.messages || []).find(m => m.id === messageId);
+  const targetMsg = (session.messages || []).find((m) => m.id === messageId);
   if (!targetMsg) {
     throw new Error(`Target message ${messageId} not found.`);
   }
@@ -774,28 +787,28 @@ export async function retrySpeakerInRound({
   const agent = getAgent(targetMsg.agentId) || THE_CHAIR;
   targetMsg.isError = false;
   targetMsg.errorMessage = null;
-  targetMsg.text = '';
+  targetMsg.text = "";
   session.updatedAt = Date.now();
-  await put('sessions', session);
+  await put("sessions", session);
 
   if (onStart) onStart(targetMsg);
 
-  let systemPrompt = '';
-  if (targetMsg.isRoundSummary || targetMsg.agentId === 'chair') {
+  let systemPrompt = "";
+  if (targetMsg.isRoundSummary || targetMsg.agentId === "chair") {
     systemPrompt = buildChairRoundSummaryPrompt({
       venture,
       phase: phase.id,
       founderPrompt: `Retry deliberation summary`,
-      transcript: session.messages.filter(m => m.id !== messageId),
-      priorAgentReplies: []
+      transcript: session.messages.filter((m) => m.id !== messageId),
+      priorAgentReplies: [],
     });
-  } else if (typeof agent.systemPromptTemplate === 'function') {
+  } else if (typeof agent.systemPromptTemplate === "function") {
     systemPrompt = agent.systemPromptTemplate({
       venture,
       phase: phase.id,
-      transcript: session.messages.filter(m => m.id !== messageId),
+      transcript: session.messages.filter((m) => m.id !== messageId),
       priorAgentReplies: [],
-      deliverableType: phase.deliverableType
+      deliverableType: phase.deliverableType,
     });
   } else {
     systemPrompt = `You are ${agent.name}, ${agent.role}. Advise the founder.`;
@@ -804,14 +817,14 @@ export async function retrySpeakerInRound({
   try {
     const streamGen = stream({
       system: systemPrompt,
-      messages: [{ role: 'user', content: 'Please provide your analytical board assessment.' }],
+      messages: [{ role: "user", content: "Please provide your analytical board assessment." }],
       signal,
       meta: {
         agentId: agent.id,
-        action: 'deliberate',
+        action: "deliberate",
         venture,
-        phase: phase.label
-      }
+        phase: phase.label,
+      },
     });
 
     for await (const chunk of streamGen) {
@@ -830,11 +843,11 @@ export async function retrySpeakerInRound({
   const provider = await getProvider();
   targetMsg.meta = {
     provider: provider.name,
-    model: provider.model || (provider.name === 'mock' ? 'deterministic-sim' : 'default'),
-    timestamp: Date.now()
+    model: provider.model || (provider.name === "mock" ? "deterministic-sim" : "default"),
+    timestamp: Date.now(),
   };
 
-  await put('sessions', session);
+  await put("sessions", session);
 
   if (onDone) onDone(targetMsg);
 
@@ -844,30 +857,24 @@ export async function retrySpeakerInRound({
 /**
  * Synthesize the official phase deliverable memo with The Chair
  */
-export async function synthesizePhaseDeliverable({
-  venture,
-  phase,
-  session,
-  onChunk,
-  signal
-}) {
-  const targetDeliverable = phase.deliverableType || 'Milestone Deliverable Memo';
+export async function synthesizePhaseDeliverable({ venture, phase, session, onChunk, signal }) {
+  const targetDeliverable = phase.deliverableType || "Milestone Deliverable Memo";
 
   const systemPrompt = THE_CHAIR.systemPromptTemplate({
     venture,
     phase: phase.id,
     transcript: session.messages || [],
-    deliverableType: targetDeliverable
+    deliverableType: targetDeliverable,
   });
 
   const messages = [
     {
-      role: 'user',
-      content: `Please synthesize the official ${targetDeliverable} for ${venture.name} across our Phase 0${phase.number}: ${phase.label} deliberations.`
-    }
+      role: "user",
+      content: `Please synthesize the official ${targetDeliverable} for ${venture.name} across our Phase 0${phase.number}: ${phase.label} deliberations.`,
+    },
   ];
 
-  let fullContent = '';
+  let fullContent = "";
 
   try {
     const streamGen = stream({
@@ -875,12 +882,12 @@ export async function synthesizePhaseDeliverable({
       messages,
       signal,
       meta: {
-        agentId: 'chair',
-        action: 'synthesize',
+        agentId: "chair",
+        action: "synthesize",
         venture,
         phase: phase.label,
-        deliverableType: targetDeliverable
-      }
+        deliverableType: targetDeliverable,
+      },
     });
 
     for await (const chunk of streamGen) {
@@ -893,25 +900,27 @@ export async function synthesizePhaseDeliverable({
       }
     }
   } catch (err) {
-    if (err.name === 'AbortError' || signal?.aborted) {
+    if (err.name === "AbortError" || signal?.aborted) {
       // The founder stopped synthesis. Do NOT ratify the milestone or persist a
       // partial deliverable — leave the venture state exactly as it was.
-      throw new DOMException('Synthesis stopped by user', 'AbortError');
+      throw new DOMException("Synthesis stopped by user", "AbortError");
     }
     // Provider/network failure: surface it and leave venture state untouched so a
     // failed synthesis can never mark the phase complete or pollute board memory.
-    console.error('Synthesis error:', err);
+    console.error("Synthesis error:", err);
     throw err;
   }
 
   if (!fullContent.trim()) {
-    throw new Error('Synthesis produced no content; the milestone was not ratified.');
+    throw new Error("Synthesis produced no content; the milestone was not ratified.");
   }
 
   // Upsert: re-synthesizing the same phase must replace the existing memo rather
   // than accumulate duplicate deliverable records.
-  const existingDeliverables = await getAll('deliverables');
-  const existing = existingDeliverables.find(d => d.ventureId === venture.id && d.phase === phase.id);
+  const existingDeliverables = await getAll("deliverables");
+  const existing = existingDeliverables.find(
+    (d) => d.ventureId === venture.id && d.phase === phase.id,
+  );
 
   const deliverable = {
     id: existing?.id || `deliv_${venture.id}_${phase.id}_${Date.now()}`,
@@ -920,10 +929,10 @@ export async function synthesizePhaseDeliverable({
     title: `${targetDeliverable} — ${venture.name}`,
     content: fullContent,
     createdAt: existing?.createdAt || Date.now(),
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
   };
 
-  await put('deliverables', deliverable);
+  await put("deliverables", deliverable);
 
   venture.completedPhases = venture.completedPhases || [];
   if (!venture.completedPhases.includes(phase.id)) {
@@ -945,21 +954,21 @@ export async function synthesizePhaseDeliverable({
 
   const announcementMsg = {
     id: `m_${Date.now()}_chair_signoff`,
-    author: 'The Chair',
-    agentId: 'chair',
-    role: 'The Chair',
+    author: "The Chair",
+    agentId: "chair",
+    role: "The Chair",
     text: `### Milestone Ratified: ${targetDeliverable}
 
 The board has formally concluded deliberations on **Phase 0${phase.number}: ${phase.label}**. 
 
 The official executive deliverable has been synthesized and entered into the permanent venture repository. The founder may inspect and export the document under the **Deliverables** tab or proceed directly to the next stage-gate review.`,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
 
   session.messages = session.messages || [];
   session.messages.push(announcementMsg);
   session.updatedAt = Date.now();
-  await put('sessions', session);
+  await put("sessions", session);
 
   return { deliverable, venture };
 }

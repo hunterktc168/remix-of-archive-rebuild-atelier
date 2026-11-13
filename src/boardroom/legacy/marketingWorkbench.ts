@@ -6,7 +6,14 @@
  * The framework document (sections) stays the canonical stored/validated form;
  * a Workbench is parsed from it and written back to it on every commit.
  */
-import { parseMoney, describeSchema, type FrameworkDoc, type FrameworkSection, type MetricItem, type TableBody } from "./frameworkEngine";
+import {
+  parseMoney,
+  describeSchema,
+  type FrameworkDoc,
+  type FrameworkSection,
+  type MetricItem,
+  type TableBody,
+} from "./frameworkEngine";
 import { getFramework, type Framework } from "./schemas";
 
 export type Goal = "awareness" | "signups" | "revenue" | "retention";
@@ -154,10 +161,19 @@ const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const round50 = (n: number) => Math.round(n / 50) * 50;
 const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const norm = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 
 export function slugify(s: string): string {
-  return (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "item";
+  return (
+    (s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "item"
+  );
 }
 
 function uniqueId(base: string, used: Set<string>): string {
@@ -224,10 +240,24 @@ export function ownerName(id: string): string {
   return OWNERS.find((o) => o.id === id)?.name ?? id;
 }
 
-const STOP_WORDS = new Set(["the", "and", "for", "ads", "channel", "channels", "paid", "free", "marketing", "with"]);
+const STOP_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "ads",
+  "channel",
+  "channels",
+  "paid",
+  "free",
+  "marketing",
+  "with",
+]);
 
 function channelWords(name: string): string[] {
-  return name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+  return name
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
 }
 
 export function channelMentioned(channel: Channel, text: string): boolean {
@@ -272,7 +302,9 @@ function body(doc: FrameworkDoc, id: string) {
   return doc.sections.find((s) => s.id === id)?.body;
 }
 function asTable(b: unknown): TableBody | null {
-  return b && typeof b === "object" && !Array.isArray(b) && Array.isArray((b as TableBody).rows) ? (b as TableBody) : null;
+  return b && typeof b === "object" && !Array.isArray(b) && Array.isArray((b as TableBody).rows)
+    ? (b as TableBody)
+    : null;
 }
 function asList(b: unknown): string[] {
   if (Array.isArray(b)) return b.filter((x): x is string => typeof x === "string" && !!x.trim());
@@ -318,7 +350,11 @@ function parseChannels(doc: FrameworkDoc): Channel[] {
 const STATUS_SUFFIX = /\s*\[(planned|running|won|lost)\]\s*$/i;
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 
-function parseExperiments(doc: FrameworkDoc, channels: Channel[], prev: Workbench | null): Experiment[] {
+function parseExperiments(
+  doc: FrameworkDoc,
+  channels: Channel[],
+  prev: Workbench | null,
+): Experiment[] {
   const t = asTable(body(doc, "experiment-backlog"));
   if (!t) return [];
   const used = new Set<string>();
@@ -335,8 +371,12 @@ function parseExperiments(doc: FrameworkDoc, channels: Channel[], prev: Workbenc
       }
       const hypothesis = (r[1] ?? "").trim();
       const p = prev?.experiments.find((e) => norm(e.test) === norm(test));
-      const id = p && !used.has(p.id) ? (used.add(p.id), p.id) : uniqueId(`x-${slugify(test)}`, used);
-      const channelId = p?.channelId && channelIds.has(p.channelId) ? p.channelId : matchChannel(`${test} ${hypothesis}`, channels);
+      const id =
+        p && !used.has(p.id) ? (used.add(p.id), p.id) : uniqueId(`x-${slugify(test)}`, used);
+      const channelId =
+        p?.channelId && channelIds.has(p.channelId)
+          ? p.channelId
+          : matchChannel(`${test} ${hypothesis}`, channels);
       const finalStatus = status ?? p?.status ?? "Planned";
       return {
         id,
@@ -347,7 +387,11 @@ function parseExperiments(doc: FrameworkDoc, channels: Channel[], prev: Workbenc
         metric: (r[3] ?? "").trim(),
         kill: (r[4] ?? "").trim(),
         status: finalStatus,
-        appliedOutcome: p ? p.appliedOutcome : finalStatus === "Won" || finalStatus === "Lost" ? finalStatus : null,
+        appliedOutcome: p
+          ? p.appliedOutcome
+          : finalStatus === "Won" || finalStatus === "Lost"
+            ? finalStatus
+            : null,
       };
     });
 }
@@ -361,7 +405,13 @@ function parseLaunch(doc: FrameworkDoc): { phases: LaunchPhase[]; tasks: LaunchT
   const ids: LaunchPhaseId[] = ["pre", "launch", "scale"];
   t.rows.forEach((r, idx) => {
     const stage = r[0] ?? "";
-    const pid: LaunchPhaseId = /pre/i.test(stage) ? "pre" : /scal|grow|expan/i.test(stage) ? "scale" : /launch/i.test(stage) ? "launch" : ids[Math.min(idx, 2)]!;
+    const pid: LaunchPhaseId = /pre/i.test(stage)
+      ? "pre"
+      : /scal|grow|expan/i.test(stage)
+        ? "scale"
+        : /launch/i.test(stage)
+          ? "launch"
+          : ids[Math.min(idx, 2)]!;
     const ph = phases.find((p) => p.id === pid)!;
     const nums = (r[1] ?? "").match(/\d+/g)?.map(Number) ?? [];
     if (nums.length) {
@@ -378,7 +428,9 @@ function parseLaunch(doc: FrameworkDoc): { phases: LaunchPhase[]; tasks: LaunchT
     seen.add(pid);
     const rowOwner = matchOwner(r[3] ?? "") ?? "founder";
     const raw = r[2] ?? "";
-    const parts = (raw.includes(";") ? raw.split(";") : raw.split(",")).map((s) => s.trim()).filter(Boolean);
+    const parts = (raw.includes(";") ? raw.split(";") : raw.split(","))
+      .map((s) => s.trim())
+      .filter(Boolean);
     parts.forEach((part, i) => {
       const m = part.match(/^w(?:ee)?k\s*(\d+)\s*[:\-–—]\s*(.*)$/i);
       let week = m?.[1] ? Number(m[1]) : null;
@@ -408,15 +460,30 @@ function parseKpis(doc: FrameworkDoc, prev: Workbench | null): KpiSlot[] {
     const re = slot.key === "northStar" ? /north/i : new RegExp(slot.key, "i");
     const item = items.find((m) => re.test(m.label || "")) ?? items[i];
     const p = prev?.kpis.find((k) => k.key === slot.key);
-    if (!item) return p ? { ...p } : { key: slot.key, metric: "", target: "", current: "", health: "on-track" as Health };
+    if (!item)
+      return p
+        ? { ...p }
+        : { key: slot.key, metric: "", target: "", current: "", health: "on-track" as Health };
     const value = item.value || "";
     const tm = value.match(/\((?:target|goal)\s*:?\s*([^)]*)\)/i);
     const metric = (tm ? value.replace(tm[0], "") : value).replace(/\s{2,}/g, " ").trim();
     const note = item.note || "";
     const cm = note.match(/current\s*:?\s*([^·|]*)/i);
-    const health: Health | null = /off.?track/i.test(note) ? "off-track" : /at.?risk/i.test(note) ? "at-risk" : /on.?track/i.test(note) ? "on-track" : null;
+    const health: Health | null = /off.?track/i.test(note)
+      ? "off-track"
+      : /at.?risk/i.test(note)
+        ? "at-risk"
+        : /on.?track/i.test(note)
+          ? "on-track"
+          : null;
     const current = cm?.[1] ? cm[1].trim().replace(/^—$/, "") : "";
-    return { key: slot.key, metric, target: tm?.[1]?.trim() ?? "", current: current || p?.current || "", health: health ?? p?.health ?? "on-track" };
+    return {
+      key: slot.key,
+      metric,
+      target: tm?.[1]?.trim() ?? "",
+      current: current || p?.current || "",
+      health: health ?? p?.health ?? "on-track",
+    };
   });
 }
 
@@ -425,14 +492,22 @@ function parseKpis(doc: FrameworkDoc, prev: Workbench | null): KpiSlot[] {
  * `prev` carries forward things the document cannot hold (goal, risk, experiment
  * outcomes, KPI readings, LTV override); `levers` overrides lever values.
  */
-export function workbenchFromDoc(doc: FrameworkDoc, opts: { prev?: Workbench | null; levers?: Partial<Levers> } = {}): Workbench {
+export function workbenchFromDoc(
+  doc: FrameworkDoc,
+  opts: { prev?: Workbench | null; levers?: Partial<Levers> } = {},
+): Workbench {
   const prev = opts.prev ?? null;
   const channels = parseChannels(doc);
   const alloc = asMetrics(body(doc, "budget-allocation"));
   const total = parseMoney(alloc.find((m) => /total/i.test(m.label || ""))?.value);
   const docBudget = total ?? sum(channels.map((c) => c.budget));
-  const levers: Levers = { budget: Math.max(0, Math.round(docBudget)), goal: prev?.levers.goal ?? "signups", risk: prev?.levers.risk ?? "balanced" };
-  for (const [k, v] of Object.entries(opts.levers ?? {})) if (v !== undefined && v !== null) (levers as unknown as Record<string, unknown>)[k] = v;
+  const levers: Levers = {
+    budget: Math.max(0, Math.round(docBudget)),
+    goal: prev?.levers.goal ?? "signups",
+    risk: prev?.levers.risk ?? "balanced",
+  };
+  for (const [k, v] of Object.entries(opts.levers ?? {}))
+    if (v !== undefined && v !== null) (levers as unknown as Record<string, unknown>)[k] = v;
   return {
     levers,
     channels,
@@ -440,10 +515,16 @@ export function workbenchFromDoc(doc: FrameworkDoc, opts: { prev?: Workbench | n
     launch: parseLaunch(doc),
     kpis: parseKpis(doc, prev),
     narrative: {
-      positioning: typeof body(doc, "positioning") === "string" ? (body(doc, "positioning") as string) : asList(body(doc, "positioning")).join(" "),
+      positioning:
+        typeof body(doc, "positioning") === "string"
+          ? (body(doc, "positioning") as string)
+          : asList(body(doc, "positioning")).join(" "),
       icp: asList(body(doc, "icp")),
       pillars: asList(body(doc, "messaging-pillars")),
-      cutFirst: typeof body(doc, "cut-first") === "string" ? (body(doc, "cut-first") as string) : asList(body(doc, "cut-first")).join(" "),
+      cutFirst:
+        typeof body(doc, "cut-first") === "string"
+          ? (body(doc, "cut-first") as string)
+          : asList(body(doc, "cut-first")).join(" "),
     },
     ltvOverride: prev?.ltvOverride ?? null,
   };
@@ -454,10 +535,18 @@ export function docFromWorkbench(wb: Workbench, title: string): FrameworkDoc {
   const shares = allocateShares(wb.channels.map((c) => c.budget));
   const allocated = sum(wb.channels.map((c) => c.budget));
   const healthLabel = (h: Health) => HEALTH_STATES.find((x) => x.id === h)?.label ?? h;
-  const phaseTasks = (pid: LaunchPhaseId) => wb.launch.tasks.filter((t) => t.phase === pid).sort((a, b) => a.week - b.week);
+  const phaseTasks = (pid: LaunchPhaseId) =>
+    wb.launch.tasks.filter((t) => t.phase === pid).sort((a, b) => a.week - b.week);
 
-  const sec = (id: string, kind: FrameworkSection["kind"], b: FrameworkSection["body"]): FrameworkSection => ({ id, heading: headingFor(id), kind, body: b });
-  const totalItem: MetricItem = { label: "Total monthly budget", value: fmtMoney(wb.levers.budget) };
+  const sec = (
+    id: string,
+    kind: FrameworkSection["kind"],
+    b: FrameworkSection["body"],
+  ): FrameworkSection => ({ id, heading: headingFor(id), kind, body: b });
+  const totalItem: MetricItem = {
+    label: "Total monthly budget",
+    value: fmtMoney(wb.levers.budget),
+  };
   if (allocated !== wb.levers.budget) totalItem.note = `channels allocate ${fmtMoney(allocated)}`;
 
   return {
@@ -469,19 +558,41 @@ export function docFromWorkbench(wb: Workbench, title: string): FrameworkDoc {
       sec("messaging-pillars", "bullets", [...wb.narrative.pillars]),
       sec("channel-portfolio", "table", {
         columns: columnsFor("channel-portfolio"),
-        rows: wb.channels.map((c) => [c.name, c.role, fmtMoney(c.budget), fmtMoney(c.cac), c.cac > 0 ? `${fmtNum(c.budget / c.cac)} customers/mo` : "—", String(c.confidence), c.status]),
+        rows: wb.channels.map((c) => [
+          c.name,
+          c.role,
+          fmtMoney(c.budget),
+          fmtMoney(c.cac),
+          c.cac > 0 ? `${fmtNum(c.budget / c.cac)} customers/mo` : "—",
+          String(c.confidence),
+          c.status,
+        ]),
       }),
-      sec("budget-allocation", "metrics", [totalItem, ...wb.channels.map((c, i) => ({ label: c.name, value: `${shares[i]}%` }))]),
+      sec("budget-allocation", "metrics", [
+        totalItem,
+        ...wb.channels.map((c, i) => ({ label: c.name, value: `${shares[i]}%` })),
+      ]),
       sec("experiment-backlog", "table", {
         columns: columnsFor("experiment-backlog"),
-        rows: wb.experiments.map((e) => [e.status === "Planned" ? e.test : `${e.test} [${e.status}]`, e.hypothesis, fmtMoney(e.cost), e.metric, e.kill]),
+        rows: wb.experiments.map((e) => [
+          e.status === "Planned" ? e.test : `${e.test} [${e.status}]`,
+          e.hypothesis,
+          fmtMoney(e.cost),
+          e.metric,
+          e.kill,
+        ]),
       }),
       sec("launch-sequence", "table", {
         columns: columnsFor("launch-sequence"),
         rows: wb.launch.phases.map((p) => {
           const tasks = phaseTasks(p.id);
           const owners = [...new Set(tasks.map((t) => ownerName(t.owner)))];
-          return [p.label, `Weeks ${p.startWeek}–${p.endWeek}`, tasks.map((t) => `Wk ${t.week}: ${t.title} (${ownerName(t.owner)})`).join("; "), owners.join(" + ") || "Founder"];
+          return [
+            p.label,
+            `Weeks ${p.startWeek}–${p.endWeek}`,
+            tasks.map((t) => `Wk ${t.week}: ${t.title} (${ownerName(t.owner)})`).join("; "),
+            owners.join(" + ") || "Founder",
+          ];
         }),
       }),
       sec(
@@ -489,7 +600,11 @@ export function docFromWorkbench(wb: Workbench, title: string): FrameworkDoc {
         "metrics",
         wb.kpis.map((k) => {
           const slot = KPI_SLOTS.find((s) => s.key === k.key)!;
-          return { label: slot.docLabel, value: `${k.metric}${k.target ? ` (target ${k.target})` : ""}`, note: `current: ${k.current || "—"} · ${healthLabel(k.health)}` };
+          return {
+            label: slot.docLabel,
+            value: `${k.metric}${k.target ? ` (target ${k.target})` : ""}`,
+            note: `current: ${k.current || "—"} · ${healthLabel(k.health)}`,
+          };
         }),
       ),
       sec("cut-first", "prose", wb.narrative.cutFirst),
@@ -595,7 +710,10 @@ export function ltvFromRevenueModel(bullets: string[]): { ltv: number; basis: st
   const margin = text.match(/(\d+(?:\.\d+)?)\s*%\s*gross margin/i);
   if (churn?.[1] && parseFloat(churn[1]) > 0) {
     const m = margin?.[1] ? parseFloat(margin[1]) / 100 : 1;
-    return { ltv: Math.round((p * m) / (parseFloat(churn[1]) / 100)), basis: `$${p}/mo${margin ? ` × ${margin[1]}% margin` : ""} ÷ ${churn[1]}% monthly churn` };
+    return {
+      ltv: Math.round((p * m) / (parseFloat(churn[1]) / 100)),
+      basis: `$${p}/mo${margin ? ` × ${margin[1]}% margin` : ""} ÷ ${churn[1]}% monthly churn`,
+    };
   }
   return { ltv: Math.round(p * 24), basis: `$${p}/mo × an assumed 24-month lifetime` };
 }
@@ -608,7 +726,10 @@ interface FrameworkLike {
 
 /** LTV from the venture's Lean Canvas, else its Business Blueprint. */
 export function ltvFromFrameworks(deliverables: FrameworkLike[]): LtvInfo | null {
-  for (const [id, label] of [["lean-canvas", "Lean Canvas"], ["business-blueprint", "Business Blueprint"]] as const) {
+  for (const [id, label] of [
+    ["lean-canvas", "Lean Canvas"],
+    ["business-blueprint", "Business Blueprint"],
+  ] as const) {
     const d = deliverables.find((x) => x.framework === id);
     const rev = d?.sections?.find((s) => s.id === "revenue-streams");
     if (!rev) continue;
@@ -623,7 +744,11 @@ export function ltvFromFrameworks(deliverables: FrameworkLike[]): LtvInfo | null
 /* ------------------------------------------------------------------ */
 
 /** Paused and Cut channels spend nothing; their budget becomes unallocated. */
-export function setChannelStatus(wb: Workbench, channelId: string, status: ChannelStatus): Workbench {
+export function setChannelStatus(
+  wb: Workbench,
+  channelId: string,
+  status: ChannelStatus,
+): Workbench {
   const out = clone(wb);
   const c = out.channels.find((x) => x.id === channelId);
   if (!c) return out;
@@ -644,7 +769,9 @@ export interface Reallocation {
 function weakestChannel(channels: Channel[], exclude: string | null = null): Channel | null {
   return (
     channels
-      .filter((c) => c.id !== exclude && c.status !== "Cut" && c.status !== "Paused" && c.budget > 0)
+      .filter(
+        (c) => c.id !== exclude && c.status !== "Cut" && c.status !== "Paused" && c.budget > 0,
+      )
       .sort((a, b) => a.confidence - b.confidence || b.cac - a.cac)[0] ?? null
   );
 }
@@ -654,7 +781,9 @@ function weakestChannel(channels: Channel[], exclude: string | null = null): Cha
  * weakest channel's budget (in $50 steps) into it.
  */
 export function suggestReallocation(wb: Workbench): Reallocation | null {
-  const strong = wb.channels.filter((c) => c.status === "Scaling" && c.confidence >= 4).sort((a, b) => b.confidence - a.confidence || a.cac - b.cac)[0];
+  const strong = wb.channels
+    .filter((c) => c.status === "Scaling" && c.confidence >= 4)
+    .sort((a, b) => b.confidence - a.confidence || a.cac - b.cac)[0];
   if (!strong) return null;
   const weak = weakestChannel(wb.channels, strong.id);
   if (!weak || weak.confidence >= strong.confidence) return null;
@@ -683,7 +812,10 @@ export function applyReallocation(wb: Workbench, r: Reallocation): Workbench {
 /** Draft a falsifiable test for a channel: hypothesis + kill criterion. */
 export function experimentForChannel(channel: Channel, existingIds: string[] = []): Experiment {
   const cac = channel.cac > 0 ? channel.cac : 250;
-  const cost = Math.max(50, round50(Math.min(channel.budget > 0 ? channel.budget : cac * 2, cac * 2)));
+  const cost = Math.max(
+    50,
+    round50(Math.min(channel.budget > 0 ? channel.budget : cac * 2, cac * 2)),
+  );
   const customers = Math.max(1, Math.floor(cost / cac));
   return {
     id: newId(`x-${slugify(channel.name)}`, existingIds),
@@ -702,7 +834,11 @@ export function experimentForChannel(channel: Channel, existingIds: string[] = [
  * Change an experiment's status. Won adds +1 and Lost −1 to the linked channel's
  * confidence; moving away from an outcome reverses what was applied.
  */
-export function setExperimentStatus(wb: Workbench, experimentId: string, status: ExperimentStatus): Workbench {
+export function setExperimentStatus(
+  wb: Workbench,
+  experimentId: string,
+  status: ExperimentStatus,
+): Workbench {
   const out = clone(wb);
   const exp = out.experiments.find((e) => e.id === experimentId);
   if (!exp) return out;
@@ -725,17 +861,27 @@ export function outcomeDrift(committed: Workbench, working: Workbench): OutcomeD
   const confidence = working.channels
     .map((c) => {
       const before = committed.channels.find((x) => x.id === c.id);
-      return before && before.confidence !== c.confidence ? { channelId: c.id, name: c.name, from: before.confidence, to: c.confidence } : null;
+      return before && before.confidence !== c.confidence
+        ? { channelId: c.id, name: c.name, from: before.confidence, to: c.confidence }
+        : null;
     })
     .filter((x): x is NonNullable<typeof x> => !!x);
   const outcomes = working.experiments
-    .filter((e) => e.appliedOutcome && committed.experiments.find((x) => x.id === e.id)?.appliedOutcome !== e.appliedOutcome)
+    .filter(
+      (e) =>
+        e.appliedOutcome &&
+        committed.experiments.find((x) => x.id === e.id)?.appliedOutcome !== e.appliedOutcome,
+    )
     .map((e) => ({ id: e.id, test: e.test, status: e.status }));
   return { confidence, outcomes };
 }
 
 /** Move a launch task to the phase that owns `week` (or to `phase`, keeping its week inside it). */
-export function moveTask(wb: Workbench, taskId: string, target: { phase?: LaunchPhaseId; week?: number }): Workbench {
+export function moveTask(
+  wb: Workbench,
+  taskId: string,
+  target: { phase?: LaunchPhaseId; week?: number },
+): Workbench {
   const out = clone(wb);
   const t = out.launch.tasks.find((x) => x.id === taskId);
   if (!t) return out;
@@ -765,13 +911,21 @@ function applyAnswers(wb: Workbench, lv: Levers, answers: EvolveAnswers, log: st
   const amount = money ? parseMoney(money[0]) : null;
   if (amount && amount > 0) {
     lv.budget = Math.round(amount);
-    log.push(`Constraint — “${truncate(constraint, 90)}”: monthly budget set to ${fmtMoney(lv.budget)}.`);
+    log.push(
+      `Constraint — “${truncate(constraint, 90)}”: monthly budget set to ${fmtMoney(lv.budget)}.`,
+    );
   } else if (constraint) {
-    log.push(`Constraint — “${truncate(constraint, 90)}”: written into What We Would Cut First as a binding rule.`);
+    log.push(
+      `Constraint — “${truncate(constraint, 90)}”: written into What We Would Cut First as a binding rule.`,
+    );
   }
 
   for (const c of wb.channels) {
-    const src = [changed, constraint].find((t) => channelMentioned(c, t) && /\b(cut|stop|drop|kill|no more|pause|freeze|can't|cannot)\b/i.test(t));
+    const src = [changed, constraint].find(
+      (t) =>
+        channelMentioned(c, t) &&
+        /\b(cut|stop|drop|kill|no more|pause|freeze|can't|cannot)\b/i.test(t),
+    );
     if (src) {
       const to: ChannelStatus = /pause|freeze/i.test(src) ? "Paused" : "Cut";
       c.status = to;
@@ -782,17 +936,29 @@ function applyAnswers(wb: Workbench, lv: Levers, answers: EvolveAnswers, log: st
 
   if (learned) {
     const ch = wb.channels.find((c) => channelMentioned(c, learned) && c.status !== "Cut") ?? null;
-    const neg = /\b(fail|failed|didn'?t|did not|not work|expensive|worse|lost|poor|weak|below|no one|nobody|churn)/i.test(learned);
-    const pos = !neg && /\b(work|worked|works|convert|converted|cheap|cheaper|better|won|strong|great|beat|above|loved|responded)/i.test(learned);
+    const neg =
+      /\b(fail|failed|didn'?t|did not|not work|expensive|worse|lost|poor|weak|below|no one|nobody|churn)/i.test(
+        learned,
+      );
+    const pos =
+      !neg &&
+      /\b(work|worked|works|convert|converted|cheap|cheaper|better|won|strong|great|beat|above|loved|responded)/i.test(
+        learned,
+      );
     if (ch && (pos || neg)) {
       const from = ch.confidence;
       ch.confidence = clampConfidence(from + (pos ? 1 : -1));
-      log.push(`Learning — “${truncate(learned, 90)}”: ${ch.name} confidence ${from} → ${ch.confidence}.`);
+      log.push(
+        `Learning — “${truncate(learned, 90)}”: ${ch.name} confidence ${from} → ${ch.confidence}.`,
+      );
     } else {
       log.push(`Learning — “${truncate(learned, 90)}”: logged as a follow-up experiment.`);
     }
     wb.experiments.push({
-      id: newId("x-follow-up", wb.experiments.map((e) => e.id)),
+      id: newId(
+        "x-follow-up",
+        wb.experiments.map((e) => e.id),
+      ),
       channelId: ch?.id ?? null,
       test: `Follow-up: ${truncate(learned, 48)}`,
       hypothesis: `The learning “${truncate(learned, 120)}” repeats with a second cohort.`,
@@ -806,13 +972,29 @@ function applyAnswers(wb: Workbench, lv: Levers, answers: EvolveAnswers, log: st
 
   if (changed) {
     const launch = wb.launch.phases.find((p) => p.id === "launch") ?? DEFAULT_PHASES[1]!;
-    wb.launch.tasks.push({ id: newId("t-change", wb.launch.tasks.map((t) => t.id)), phase: "launch", week: launch.startWeek, title: `Respond to: ${truncate(changed, 60)}`, owner: "marcus" });
-    log.push(`What changed — “${truncate(changed, 90)}”: added a Week ${launch.startWeek} response task and re-weighted the portfolio around it.`);
+    wb.launch.tasks.push({
+      id: newId(
+        "t-change",
+        wb.launch.tasks.map((t) => t.id),
+      ),
+      phase: "launch",
+      week: launch.startWeek,
+      title: `Respond to: ${truncate(changed, 60)}`,
+      owner: "marcus",
+    });
+    log.push(
+      `What changed — “${truncate(changed, 90)}”: added a Week ${launch.startWeek} response task and re-weighted the portfolio around it.`,
+    );
   }
 }
 
 /** Marcus's deterministic re-plan for new levers (and optional interview answers). */
-export function replanForLevers(prev: Workbench, levers: Levers, answers: EvolveAnswers | null = null, fromLevers: Levers = prev.levers): { workbench: Workbench; changeLog: string[] } {
+export function replanForLevers(
+  prev: Workbench,
+  levers: Levers,
+  answers: EvolveAnswers | null = null,
+  fromLevers: Levers = prev.levers,
+): { workbench: Workbench; changeLog: string[] } {
   const wb = clone(prev);
   const log: string[] = [];
   const lv: Levers = { ...levers };
@@ -821,7 +1003,9 @@ export function replanForLevers(prev: Workbench, levers: Levers, answers: Evolve
   for (const c of wb.channels) {
     if (lv.risk === "conservative" && c.status === "Testing" && c.confidence <= 2) {
       c.status = "Paused";
-      log.push(`Paused ${c.name} (confidence ${c.confidence}/5) — a conservative posture funds proven channels only.`);
+      log.push(
+        `Paused ${c.name} (confidence ${c.confidence}/5) — a conservative posture funds proven channels only.`,
+      );
     }
     if (lv.risk === "aggressive" && c.status === "Paused") {
       c.status = "Testing";
@@ -829,10 +1013,21 @@ export function replanForLevers(prev: Workbench, levers: Levers, answers: Evolve
     }
   }
 
-  if (lv.goal === "retention" && !wb.channels.some((c) => /retention|lifecycle|referral/i.test(`${c.role} ${c.name}`))) {
+  if (
+    lv.goal === "retention" &&
+    !wb.channels.some((c) => /retention|lifecycle|referral/i.test(`${c.role} ${c.name}`))
+  ) {
     const cacs = wb.channels.map((c) => c.cac).filter((n) => n > 0);
     const minCac = cacs.length ? Math.min(...cacs) : 250;
-    wb.channels.push({ id: uniqueId("lifecycle-email-referrals", new Set(wb.channels.map((c) => c.id))), name: "Lifecycle email & referrals", role: "Retention (post-signup)", budget: 0, cac: Math.max(50, round50(minCac * 0.6)), confidence: 3, status: "Testing" });
+    wb.channels.push({
+      id: uniqueId("lifecycle-email-referrals", new Set(wb.channels.map((c) => c.id))),
+      name: "Lifecycle email & referrals",
+      role: "Retention (post-signup)",
+      budget: 0,
+      cac: Math.max(50, round50(minCac * 0.6)),
+      confidence: 3,
+      status: "Testing",
+    });
     log.push("Added Lifecycle email & referrals — the retention goal needs a post-signup channel.");
   }
 
@@ -841,7 +1036,8 @@ export function replanForLevers(prev: Workbench, levers: Levers, answers: Evolve
     if (c.status === "Paused" || c.status === "Cut") return 0;
     let w = Math.max(c.budget, 250);
     if (lv.risk === "conservative") w *= c.confidence / 3;
-    if (lv.risk === "aggressive") w *= c.status === "Scaling" ? 1.25 : 1 + (5 - c.confidence) * 0.15;
+    if (lv.risk === "aggressive")
+      w *= c.status === "Scaling" ? 1.25 : 1 + (5 - c.confidence) * 0.15;
     if (GOAL_ROLE[lv.goal].test(c.role)) w *= 1.35;
     return w;
   });
@@ -851,37 +1047,62 @@ export function replanForLevers(prev: Workbench, levers: Levers, answers: Evolve
   wb.levers = lv;
 
   const head: string[] = [];
-  if (lv.budget !== fromLevers.budget) head.push(`Monthly budget ${fmtMoney(fromLevers.budget)} → ${fmtMoney(lv.budget)}.`);
+  if (lv.budget !== fromLevers.budget)
+    head.push(`Monthly budget ${fmtMoney(fromLevers.budget)} → ${fmtMoney(lv.budget)}.`);
   if (lv.risk !== fromLevers.risk) head.push(`Risk appetite ${fromLevers.risk} → ${lv.risk}.`);
   if (lv.goal !== fromLevers.goal) {
     const ns = NORTH_STAR_BY_GOAL[lv.goal](lv.budget);
     const slot = wb.kpis.find((k) => k.key === "northStar");
-    if (slot) Object.assign(slot, { metric: ns.metric, target: ns.target, current: "", health: "on-track" });
-    head.push(`Primary goal ${goalLabel(fromLevers.goal)} → ${goalLabel(lv.goal)}; North Star is now “${ns.metric}”.`);
+    if (slot)
+      Object.assign(slot, {
+        metric: ns.metric,
+        target: ns.target,
+        current: "",
+        health: "on-track",
+      });
+    head.push(
+      `Primary goal ${goalLabel(fromLevers.goal)} → ${goalLabel(lv.goal)}; North Star is now “${ns.metric}”.`,
+    );
   }
   wb.channels
     .map((c) => ({ c, d: c.budget - (before.get(c.id) ?? 0) }))
     .filter((x) => x.d !== 0)
     .sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
     .slice(0, 3)
-    .forEach(({ c }) => log.push(`${c.name}: ${fmtMoney(before.get(c.id) ?? 0)} → ${fmtMoney(c.budget)}/mo.`));
+    .forEach(({ c }) =>
+      log.push(`${c.name}: ${fmtMoney(before.get(c.id) ?? 0)} → ${fmtMoney(c.budget)}/mo.`),
+    );
 
   const weakest = weakestChannel(wb.channels);
   if (weakest) {
     const base = `${weakest.name} is the weakest funded channel (confidence ${weakest.confidence}/5, CAC ${fmtMoney(weakest.cac)}). Cut it if CAC exceeds ${fmtMoney(weakest.cac * 1.5)} after ${fmtMoney(Math.max(weakest.budget, weakest.cac * 2))} of spend, and move the budget to the strongest Scaling channel.`;
     const context = answers
-      ? [answers.changed?.trim() && `Since the last version: ${answers.changed.trim().replace(/\.$/, "")}.`, answers.constraint?.trim() && `New constraint: ${answers.constraint.trim().replace(/\.$/, "")}.`].filter(Boolean).join(" ")
+      ? [
+          answers.changed?.trim() &&
+            `Since the last version: ${answers.changed.trim().replace(/\.$/, "")}.`,
+          answers.constraint?.trim() &&
+            `New constraint: ${answers.constraint.trim().replace(/\.$/, "")}.`,
+        ]
+          .filter(Boolean)
+          .join(" ")
       : "";
     wb.narrative.cutFirst = context ? `${context} ${base}` : base;
   }
 
   const changeLog = [...head, ...log];
-  if (!changeLog.length) changeLog.push("Levers unchanged — the board re-balanced the portfolio around current confidence scores.");
+  if (!changeLog.length)
+    changeLog.push(
+      "Levers unchanged — the board re-balanced the portfolio around current confidence scores.",
+    );
   return { workbench: wb, changeLog };
 }
 
 /** Elena's deterministic finance check on a re-plan. */
-export function financeReview(wb: Workbench, prev: Workbench | null, ltv: number | null): { workbench: Workbench; changeLog: string[] } {
+export function financeReview(
+  wb: Workbench,
+  prev: Workbench | null,
+  ltv: number | null,
+): { workbench: Workbench; changeLog: string[] } {
   const out = clone(wb);
   const log: string[] = [];
   for (const c of out.channels) {
@@ -889,14 +1110,21 @@ export function financeReview(wb: Workbench, prev: Workbench | null, ltv: number
     if (p && p.budget > 0 && c.budget > p.budget * 1.5 && c.cac > 0) {
       const from = c.cac;
       c.cac = Math.round((c.cac * 1.15) / 10) * 10;
-      log.push(`${c.name}: CAC ${fmtMoney(from)} → ${fmtMoney(c.cac)} — spend is up ${Math.round((c.budget / p.budget - 1) * 100)}%, so I priced in diminishing returns.`);
+      log.push(
+        `${c.name}: CAC ${fmtMoney(from)} → ${fmtMoney(c.cac)} — spend is up ${Math.round((c.budget / p.budget - 1) * 100)}%, so I priced in diminishing returns.`,
+      );
     }
   }
   const pf = computePortfolio(out, ltv);
-  if (pf.blendedCac) log.push(`Blended CAC ${fmtMoney(pf.blendedCac)}${pf.blendedLtvCac ? `, LTV:CAC ${pf.blendedLtvCac.toFixed(1)}×` : ""} on ${fmtMoney(pf.allocated)}/mo.`);
+  if (pf.blendedCac)
+    log.push(
+      `Blended CAC ${fmtMoney(pf.blendedCac)}${pf.blendedLtvCac ? `, LTV:CAC ${pf.blendedLtvCac.toFixed(1)}×` : ""} on ${fmtMoney(pf.allocated)}/mo.`,
+    );
   pf.rows
     .filter((r) => r.status === "Scaling" && r.ltvCac !== null && r.ltvCac < 3)
-    .forEach((r) => log.push(`${r.name} is Scaling below 3× LTV:CAC (${r.ltvCac!.toFixed(1)}×) — watch payback.`));
+    .forEach((r) =>
+      log.push(`${r.name} is Scaling below 3× LTV:CAC (${r.ltvCac!.toFixed(1)}×) — watch payback.`),
+    );
   return { workbench: out, changeLog: log };
 }
 
@@ -906,21 +1134,34 @@ export function financeReview(wb: Workbench, prev: Workbench | null, ltv: number
 
 const cell = (s: string) => (s || "").replace(/\|/g, "/").replace(/\n+/g, " ");
 
-export function workbenchMarkdown(wb: Workbench, ltvInfo: LtvInfo | null, changeLog: string[] = []): string {
+export function workbenchMarkdown(
+  wb: Workbench,
+  ltvInfo: LtvInfo | null,
+  changeLog: string[] = [],
+): string {
   const ltv = effectiveLtv(wb, ltvInfo);
   const pf = computePortfolio(wb, ltv);
   const x = (n: number | null) => (n == null ? "—" : `${n.toFixed(1)}×`);
   const out: string[] = [];
 
-  out.push(`## Levers\n\n- **Monthly budget:** ${fmtMoney(wb.levers.budget)}\n- **Primary goal:** ${goalLabel(wb.levers.goal)}\n- **Risk appetite:** ${capitalize(wb.levers.risk)}\n- **LTV assumption:** ${ltv ? `${fmtMoney(ltv)}${wb.ltvOverride ? " (founder override)" : ltvInfo ? ` (from ${ltvInfo.source}: ${ltvInfo.basis})` : ""}` : "not set"}`);
+  out.push(
+    `## Levers\n\n- **Monthly budget:** ${fmtMoney(wb.levers.budget)}\n- **Primary goal:** ${goalLabel(wb.levers.goal)}\n- **Risk appetite:** ${capitalize(wb.levers.risk)}\n- **LTV assumption:** ${ltv ? `${fmtMoney(ltv)}${wb.ltvOverride ? " (founder override)" : ltvInfo ? ` (from ${ltvInfo.source}: ${ltvInfo.basis})` : ""}` : "not set"}`,
+  );
   out.push(`## ${headingFor("positioning")}\n\n${wb.narrative.positioning}`);
   out.push(`## ${headingFor("icp")}\n\n${wb.narrative.icp.map((b) => `- ${b}`).join("\n")}`);
-  out.push(`## ${headingFor("messaging-pillars")}\n\n${wb.narrative.pillars.map((b) => `- ${b}`).join("\n")}`);
+  out.push(
+    `## ${headingFor("messaging-pillars")}\n\n${wb.narrative.pillars.map((b) => `- ${b}`).join("\n")}`,
+  );
 
-  const rows = pf.rows.map((r) => `| ${cell(r.name)} | ${cell(r.role)} | ${fmtMoney(r.budget)} | ${r.share}% | ${fmtMoney(r.cac)} | ${fmtNum(r.volume)}/mo | ${x(r.ltvCac)} | ${r.confidence}/5 | ${r.status} |`);
+  const rows = pf.rows.map(
+    (r) =>
+      `| ${cell(r.name)} | ${cell(r.role)} | ${fmtMoney(r.budget)} | ${r.share}% | ${fmtMoney(r.cac)} | ${fmtNum(r.volume)}/mo | ${x(r.ltvCac)} | ${r.confidence}/5 | ${r.status} |`,
+  );
   let warn = "";
-  if (pf.overBy > 0) warn = `\n\n> ⚠ Channels total ${fmtMoney(pf.allocated)} — ${fmtMoney(pf.overBy)} over the ${fmtMoney(wb.levers.budget)} budget lever.`;
-  else if (pf.unallocated > 0) warn = `\n\n> ${fmtMoney(pf.unallocated)} of the ${fmtMoney(wb.levers.budget)} budget lever is unallocated.`;
+  if (pf.overBy > 0)
+    warn = `\n\n> ⚠ Channels total ${fmtMoney(pf.allocated)} — ${fmtMoney(pf.overBy)} over the ${fmtMoney(wb.levers.budget)} budget lever.`;
+  else if (pf.unallocated > 0)
+    warn = `\n\n> ${fmtMoney(pf.unallocated)} of the ${fmtMoney(wb.levers.budget)} budget lever is unallocated.`;
   out.push(
     `## Channel Portfolio\n\n| Channel | Role | Monthly $ | % of budget | CAC hyp. | Volume hyp. | LTV:CAC | Confidence | Status |\n| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n${rows.join("\n")}\n| **Total** | | **${fmtMoney(pf.allocated)}** | **${pf.shareSum}%** | ${fmtMoney(pf.blendedCac)} blended | ${fmtNum(pf.totalVolume)}/mo | ${x(pf.blendedLtvCac)} | | |${warn}`,
   );
@@ -928,14 +1169,19 @@ export function workbenchMarkdown(wb: Workbench, ltvInfo: LtvInfo | null, change
   const chName = (id: string | null) => wb.channels.find((c) => c.id === id)?.name ?? "—";
   out.push(
     `## Experiment Backlog\n\n| Test | Status | Hypothesis | Cost | Success metric | Kill criterion | Channel |\n| --- | --- | --- | ---: | --- | --- | --- |\n${wb.experiments
-      .map((e) => `| ${cell(e.test)} | ${e.status} | ${cell(e.hypothesis)} | ${fmtMoney(e.cost)} | ${cell(e.metric)} | ${cell(e.kill)} | ${cell(chName(e.channelId))} |`)
+      .map(
+        (e) =>
+          `| ${cell(e.test)} | ${e.status} | ${cell(e.hypothesis)} | ${fmtMoney(e.cost)} | ${cell(e.metric)} | ${cell(e.kill)} | ${cell(chName(e.channelId))} |`,
+      )
       .join("\n")}`,
   );
 
   out.push(
     `## Launch Sequence\n\n${wb.launch.phases
       .map((p) => {
-        const tasks = wb.launch.tasks.filter((t) => t.phase === p.id).sort((a, b) => a.week - b.week);
+        const tasks = wb.launch.tasks
+          .filter((t) => t.phase === p.id)
+          .sort((a, b) => a.week - b.week);
         return `### ${p.label} · Weeks ${p.startWeek}–${p.endWeek}\n\n${tasks.length ? tasks.map((t) => `- **Week ${t.week}** — ${t.title} · _${ownerName(t.owner)}_`).join("\n") : "- _(no tasks)_"}`;
       })
       .join("\n\n")}`,
@@ -943,11 +1189,15 @@ export function workbenchMarkdown(wb: Workbench, ltvInfo: LtvInfo | null, change
 
   out.push(
     `## KPI Cadence\n\n| Slot | Metric | Target | Current | Health |\n| --- | --- | --- | --- | --- |\n${wb.kpis
-      .map((k) => `| ${KPI_SLOTS.find((s) => s.key === k.key)?.label} | ${cell(k.metric)} | ${cell(k.target) || "—"} | ${cell(k.current) || "—"} | ${HEALTH_STATES.find((h) => h.id === k.health)?.label} |`)
+      .map(
+        (k) =>
+          `| ${KPI_SLOTS.find((s) => s.key === k.key)?.label} | ${cell(k.metric)} | ${cell(k.target) || "—"} | ${cell(k.current) || "—"} | ${HEALTH_STATES.find((h) => h.id === k.health)?.label} |`,
+      )
       .join("\n")}`,
   );
   out.push(`## ${headingFor("cut-first")}\n\n${wb.narrative.cutFirst}`);
-  if (changeLog.length) out.push(`## What the board changed\n\n${changeLog.map((c) => `- ${c}`).join("\n")}`);
+  if (changeLog.length)
+    out.push(`## What the board changed\n\n${changeLog.map((c) => `- ${c}`).join("\n")}`);
   return out.join("\n\n");
 }
 
@@ -996,10 +1246,20 @@ ${describeSchema(framework.schema)}
 
 === OUTPUT CONTRACT ===
 STRICT JSON only, no fences: { "title": string, "framework": "marketing-plan", "sections": [ ... ], "changeLog": [3–6 short strings, each naming one concrete change${answers ? " and quoting the founder answer it responds to" : ""}] }`;
-  return { system, user: answers ? "Evolve the Marketing Plan using the founder's interview. Return strict JSON." : "Recalculate the Marketing Plan for the new levers. Return strict JSON." };
+  return {
+    system,
+    user: answers
+      ? "Evolve the Marketing Plan using the founder's interview. Return strict JSON."
+      : "Recalculate the Marketing Plan for the new levers. Return strict JSON.",
+  };
 }
 
-export function buildElenaPrompt(input: { framework: Framework; contextPacket: string; workbench: Workbench; ltvInfo: LtvInfo | null }): { system: string; user: string } {
+export function buildElenaPrompt(input: {
+  framework: Framework;
+  contextPacket: string;
+  workbench: Workbench;
+  ltvInfo: LtvInfo | null;
+}): { system: string; user: string } {
   const ids = ["channel-portfolio", "budget-allocation"];
   const system = `You are Elena Vasquez, Chief Financial Officer on the startup's Board of Directors. Marcus has re-planned the Marketing Plan; audit the money.
 

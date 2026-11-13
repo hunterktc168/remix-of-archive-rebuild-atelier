@@ -7,12 +7,14 @@ export const Route = createFileRoute("/")({
       { title: "Dashboard — Boardroom" },
       {
         name: "description",
-        content: "Your ventures and stage-gate progress with an AI board of directors for startup founders.",
+        content:
+          "Your ventures and stage-gate progress with an AI board of directors for startup founders.",
       },
       { property: "og:title", content: "Dashboard — Boardroom" },
       {
         property: "og:description",
-        content: "Your ventures and stage-gate progress with an AI board of directors for startup founders.",
+        content:
+          "Your ventures and stage-gate progress with an AI board of directors for startup founders.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

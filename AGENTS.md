@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -27,6 +28,7 @@ use the editor.
   `LOVABLE_API_KEY`. When Lovable does not provide one, users can bring their
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
+
 <!-- LOVABLE:END -->
 
 ## Project rules
@@ -37,4 +39,4 @@ use the editor.
 - App data stays in the browser's IndexedDB (`boardroom_db`) and AI calls go from the browser with founder-supplied keys; there is no backend. Why: user chose to keep data on-device.
 - Business Plan and Marketing deliverables are framework-based: the registry lives in `src/boardroom/legacy/schemas.ts`, pure validation/prompt/repair logic in `frameworkEngine.ts` (unit-tested in `src/test/frameworks.test.ts`), persistence/versioning in `frameworkStore.ts`, UI in `views/frameworks.ts`. Why: keeps the rules testable and separate from HTML rendering.
 - Framework deliverables are one IndexedDB record per (venture, phase, framework) with `kind:'framework'`; every generate/derive/repair/edit/restore appends to `versions[]` and the top-level fields mirror the current version. Why: independent deliverables with history.
-- The no-key demo provider (`mockFrameworks.ts`, `llm.ts` mock) is legacy and not a requirement; don't extend it or make features depend on it. Why: the app is used with real AI providers only.
+- The offline demo provider must return schema-valid JSON for every framework (`mockFrameworks.ts`); a test enforces it. Why: the toolkit must work without an AI key.

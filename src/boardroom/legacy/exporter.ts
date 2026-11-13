@@ -5,7 +5,12 @@
  */
 import { escapeHtml, renderMarkdown } from "./markdown";
 import { getFramework, frameworkLabel } from "./schemas";
-import { sectionToMarkdown, type FrameworkSection, type MetricItem, type TableBody } from "./frameworkEngine";
+import {
+  sectionToMarkdown,
+  type FrameworkSection,
+  type MetricItem,
+  type TableBody,
+} from "./frameworkEngine";
 import {
   workbenchFromDoc,
   workbenchMarkdown,
@@ -67,14 +72,27 @@ export interface ExportOptions {
 }
 
 const PHASE_ORDER = ["ideation", "validation", "business-plan", "marketing"];
-const PHASE_LABEL: Record<string, string> = { ideation: "Ideation", validation: "Validation", "business-plan": "Business Plan", marketing: "Marketing Strategy" };
+const PHASE_LABEL: Record<string, string> = {
+  ideation: "Ideation",
+  validation: "Validation",
+  "business-plan": "Business Plan",
+  marketing: "Marketing Strategy",
+};
 
 const isFramework = (d: ExportDeliverable) => d.kind === "framework" && !!d.framework;
 
 /** Stable tag for any deliverable: framework id, or a memo kind. */
-export function exportTag(d: ExportDeliverable, version?: number): { framework: string; version: number } {
+export function exportTag(
+  d: ExportDeliverable,
+  version?: number,
+): { framework: string; version: number } {
   if (isFramework(d)) return { framework: d.framework!, version: version ?? d.currentVersion ?? 1 };
-  const memo = d.phase === "ideation" ? "idea-brief" : d.phase === "validation" ? "validation-report" : `${d.phase}-memo`;
+  const memo =
+    d.phase === "ideation"
+      ? "idea-brief"
+      : d.phase === "validation"
+        ? "validation-report"
+        : `${d.phase}-memo`;
   return { framework: memo, version: 1 };
 }
 
@@ -93,12 +111,21 @@ function pickVersion(d: ExportDeliverable, n?: number): ExportVersion {
   const want = n ?? d.currentVersion;
   return (
     vs.find((v) => v.version === want) ??
-    vs[vs.length - 1] ?? { version: d.currentVersion ?? 1, title: d.title ?? "", sections: d.sections ?? [], workbench: d.workbench ?? null, changeLog: d.changeLog ?? [] }
+    vs[vs.length - 1] ?? {
+      version: d.currentVersion ?? 1,
+      title: d.title ?? "",
+      sections: d.sections ?? [],
+      workbench: d.workbench ?? null,
+      changeLog: d.changeLog ?? [],
+    }
   );
 }
 
 function planWorkbench(d: ExportDeliverable, v: ExportVersion): Workbench {
-  return v.workbench ?? workbenchFromDoc({ title: v.title, framework: "marketing-plan", sections: v.sections });
+  return (
+    v.workbench ??
+    workbenchFromDoc({ title: v.title, framework: "marketing-plan", sections: v.sections })
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -106,7 +133,8 @@ function planWorkbench(d: ExportDeliverable, v: ExportVersion): Workbench {
 /* ------------------------------------------------------------------ */
 
 function frontMatter(fields: Record<string, string | number>): string {
-  const esc = (s: string | number) => (typeof s === "number" ? String(s) : /[:#"'\n]/.test(s) ? JSON.stringify(s) : s);
+  const esc = (s: string | number) =>
+    typeof s === "number" ? String(s) : /[:#"'\n]/.test(s) ? JSON.stringify(s) : s;
   return `---\n${Object.entries(fields)
     .map(([k, v]) => `${k}: ${esc(v)}`)
     .join("\n")}\n---`;
@@ -127,7 +155,9 @@ function swotMarkdown(sections: FrameworkSection[]): string {
     "",
     "## Strategic Implications",
     "",
-    s("strategic-implications").map((x) => `- ${x}`).join("\n"),
+    s("strategic-implications")
+      .map((x) => `- ${x}`)
+      .join("\n"),
   ].join("\n");
 }
 
@@ -223,7 +253,10 @@ function inlineHtml(s: string): string {
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[\s(])_([^_]+)_(?=[\s.,;)]|$)/g, "$1<em>$2</em>");
 }
-const ulHtml = (items: string[]) => (items.length ? `<ul>${items.map((x) => `<li>${inlineHtml(x)}</li>`).join("")}</ul>` : "<p><em>(empty)</em></p>");
+const ulHtml = (items: string[]) =>
+  items.length
+    ? `<ul>${items.map((x) => `<li>${inlineHtml(x)}</li>`).join("")}</ul>`
+    : "<p><em>(empty)</em></p>";
 
 function sectionHtml(s: FrameworkSection): string {
   const b = s.body;
@@ -232,7 +265,10 @@ function sectionHtml(s: FrameworkSection): string {
     const t = b as TableBody;
     return `<table><thead><tr>${t.columns.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${inlineHtml(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   }
-  if (s.kind === "metrics") return ulHtml((b as MetricItem[]).map((m) => `**${m.label}:** ${m.value}${m.note ? ` (${m.note})` : ""}`));
+  if (s.kind === "metrics")
+    return ulHtml(
+      (b as MetricItem[]).map((m) => `**${m.label}:** ${m.value}${m.note ? ` (${m.note})` : ""}`),
+    );
   return ulHtml(b as string[]);
 }
 
@@ -248,7 +284,8 @@ function canvasHtml(frameworkId: string, sections: FrameworkSection[]): string {
 }
 
 function swotHtml(sections: FrameworkSection[]): string {
-  const q = (id: string, heading: string, cls: string) => `<div class="box ${cls}"><h4>${heading}</h4>${ulHtml(list(sections.find((x) => x.id === id)?.body))}</div>`;
+  const q = (id: string, heading: string, cls: string) =>
+    `<div class="box ${cls}"><h4>${heading}</h4>${ulHtml(list(sections.find((x) => x.id === id)?.body))}</div>`;
   return `<div class="swot">
     <div></div><div class="axis">Helpful</div><div class="axis">Harmful</div>
     <div class="axis v">Internal</div>${q("strengths", "Strengths", "q-s")}${q("weaknesses", "Weaknesses", "q-w")}
@@ -262,7 +299,10 @@ function planHtml(wb: Workbench, ltvInfo: LtvInfo | null, changeLog: string[]): 
   const pf = computePortfolio(wb, ltv);
   const x = (n: number | null) => (n == null ? "—" : `${n.toFixed(1)}×`);
   const chName = (id: string | null) => wb.channels.find((c) => c.id === id)?.name ?? "—";
-  const warn = pf.overBy > 0 ? `<p class="warn">Channels total ${fmtMoney(pf.allocated)} — ${fmtMoney(pf.overBy)} over the ${fmtMoney(wb.levers.budget)} budget lever.</p>` : "";
+  const warn =
+    pf.overBy > 0
+      ? `<p class="warn">Channels total ${fmtMoney(pf.allocated)} — ${fmtMoney(pf.overBy)} over the ${fmtMoney(wb.levers.budget)} budget lever.</p>`
+      : "";
   return `
   <h2>Levers</h2>
   <table><tbody>
@@ -275,7 +315,10 @@ function planHtml(wb: Workbench, ltvInfo: LtvInfo | null, changeLog: string[]): 
   <table>
     <thead><tr><th>Channel</th><th>Role</th><th class="num">Monthly $</th><th class="num">% of budget</th><th class="num">CAC hyp.</th><th class="num">Volume hyp.</th><th class="num">LTV:CAC</th><th class="num">Confidence</th><th>Status</th></tr></thead>
     <tbody>${pf.rows
-      .map((r) => `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.role)}</td><td class="num">${fmtMoney(r.budget)}</td><td class="num">${r.share}%</td><td class="num">${fmtMoney(r.cac)}</td><td class="num">${fmtNum(r.volume)}/mo</td><td class="num">${x(r.ltvCac)}</td><td class="num">${r.confidence}/5</td><td>${r.status}</td></tr>`)
+      .map(
+        (r) =>
+          `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.role)}</td><td class="num">${fmtMoney(r.budget)}</td><td class="num">${r.share}%</td><td class="num">${fmtMoney(r.cac)}</td><td class="num">${fmtNum(r.volume)}/mo</td><td class="num">${x(r.ltvCac)}</td><td class="num">${r.confidence}/5</td><td>${r.status}</td></tr>`,
+      )
       .join("")}</tbody>
     <tfoot><tr><td>Total</td><td></td><td class="num">${fmtMoney(pf.allocated)}</td><td class="num">${pf.shareSum}%</td><td class="num">${fmtMoney(pf.blendedCac)}</td><td class="num">${fmtNum(pf.totalVolume)}/mo</td><td class="num">${x(pf.blendedLtvCac)}</td><td></td><td></td></tr></tfoot>
   </table>${warn}
@@ -283,7 +326,10 @@ function planHtml(wb: Workbench, ltvInfo: LtvInfo | null, changeLog: string[]): 
   <table>
     <thead><tr><th>Test</th><th>Status</th><th>Hypothesis</th><th class="num">Cost</th><th>Success metric</th><th>Kill criterion</th><th>Channel</th></tr></thead>
     <tbody>${wb.experiments
-      .map((e) => `<tr><td>${escapeHtml(e.test)}</td><td>${e.status}</td><td>${escapeHtml(e.hypothesis)}</td><td class="num">${fmtMoney(e.cost)}</td><td>${escapeHtml(e.metric)}</td><td>${escapeHtml(e.kill)}</td><td>${escapeHtml(chName(e.channelId))}</td></tr>`)
+      .map(
+        (e) =>
+          `<tr><td>${escapeHtml(e.test)}</td><td>${e.status}</td><td>${escapeHtml(e.hypothesis)}</td><td class="num">${fmtMoney(e.cost)}</td><td>${escapeHtml(e.metric)}</td><td>${escapeHtml(e.kill)}</td><td>${escapeHtml(chName(e.channelId))}</td></tr>`,
+      )
       .join("")}</tbody>
   </table>
   <h2>Launch Sequence</h2>
@@ -297,7 +343,10 @@ function planHtml(wb: Workbench, ltvInfo: LtvInfo | null, changeLog: string[]): 
   <table>
     <thead><tr><th>Slot</th><th>Metric</th><th>Target</th><th>Current</th><th>Health</th></tr></thead>
     <tbody>${wb.kpis
-      .map((k) => `<tr><td>${KPI_SLOTS.find((s) => s.key === k.key)?.label}</td><td>${escapeHtml(k.metric)}</td><td>${escapeHtml(k.target || "—")}</td><td>${escapeHtml(k.current || "—")}</td><td><span class="dot ${k.health}"></span>${HEALTH_STATES.find((h) => h.id === k.health)?.label}</td></tr>`)
+      .map(
+        (k) =>
+          `<tr><td>${KPI_SLOTS.find((s) => s.key === k.key)?.label}</td><td>${escapeHtml(k.metric)}</td><td>${escapeHtml(k.target || "—")}</td><td>${escapeHtml(k.current || "—")}</td><td><span class="dot ${k.health}"></span>${HEALTH_STATES.find((h) => h.id === k.health)?.label}</td></tr>`,
+      )
       .join("")}</tbody>
   </table>
   <h2>What We Would Cut First</h2><p>${inlineHtml(wb.narrative.cutFirst)}</p>
@@ -305,7 +354,8 @@ function planHtml(wb: Workbench, ltvInfo: LtvInfo | null, changeLog: string[]): 
 }
 
 export function deliverableBodyHtml(d: ExportDeliverable, opts: ExportOptions = {}): string {
-  if (!isFramework(d)) return `<div class="memo">${renderMarkdown((d.content ?? "").replace(/^#\s+.*\n+/, ""))}</div>`;
+  if (!isFramework(d))
+    return `<div class="memo">${renderMarkdown((d.content ?? "").replace(/^#\s+.*\n+/, ""))}</div>`;
   const v = pickVersion(d, opts.version);
   const f = getFramework(d.framework!);
   if (!f) return "";
@@ -320,7 +370,11 @@ function tagsHtml(fields: Record<string, string | number>): string {
     .join("")}</div>`;
 }
 
-function htmlDocument(title: string, metas: Record<string, string | number>, inner: string): string {
+function htmlDocument(
+  title: string,
+  metas: Record<string, string | number>,
+  inner: string,
+): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -343,8 +397,18 @@ export function deliverableHtml(d: ExportDeliverable, opts: ExportOptions = {}):
   const v = pickVersion(d, opts.version);
   const tag = exportTag(d, v.version);
   const title = isFramework(d) ? v.title : d.title || deliverableLabel(d);
-  const fields = { framework: tag.framework, version: tag.version, ...(opts.ventureName ? { venture: opts.ventureName } : {}), phase: d.phase, exported: opts.now ?? new Date().toISOString() };
-  return htmlDocument(title, { framework: tag.framework, version: tag.version }, `<header><h1>${escapeHtml(title)}</h1>${tagsHtml(fields)}</header>\n${deliverableBodyHtml(d, opts)}`);
+  const fields = {
+    framework: tag.framework,
+    version: tag.version,
+    ...(opts.ventureName ? { venture: opts.ventureName } : {}),
+    phase: d.phase,
+    exported: opts.now ?? new Date().toISOString(),
+  };
+  return htmlDocument(
+    title,
+    { framework: tag.framework, version: tag.version },
+    `<header><h1>${escapeHtml(title)}</h1>${tagsHtml(fields)}</header>\n${deliverableBodyHtml(d, opts)}`,
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -357,16 +421,27 @@ export function deliverableHtml(d: ExportDeliverable, opts: ExportOptions = {}):
  */
 export function orderVentureDeliverables(deliverables: ExportDeliverable[]): ExportDeliverable[] {
   const rank = (d: ExportDeliverable): number => {
-    if (!isFramework(d)) return d.phase === "ideation" ? 0 : d.phase === "validation" ? 1 : 10 + PHASE_ORDER.indexOf(d.phase);
+    if (!isFramework(d))
+      return d.phase === "ideation"
+        ? 0
+        : d.phase === "validation"
+          ? 1
+          : 10 + PHASE_ORDER.indexOf(d.phase);
     if (d.framework === "swot") return d.phase === "marketing" ? 6 : 2;
     return { "lean-canvas": 3, "business-blueprint": 4, "marketing-plan": 5 }[d.framework!] ?? 9;
   };
-  return [...deliverables].sort((a, b) => rank(a) - rank(b) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
+  return [...deliverables].sort(
+    (a, b) => rank(a) - rank(b) || (a.createdAt ?? 0) - (b.createdAt ?? 0),
+  );
 }
 
-function transcriptByPhase(sessions: ExportSession[]): { phase: string; messages: ExportMessage[] }[] {
+function transcriptByPhase(
+  sessions: ExportSession[],
+): { phase: string; messages: ExportMessage[] }[] {
   return PHASE_ORDER.map((phase) => {
-    const msgs = sessions.filter((s) => s.phase === phase).flatMap((s) => s.messages ?? s.transcript ?? []);
+    const msgs = sessions
+      .filter((s) => s.phase === phase)
+      .flatMap((s) => s.messages ?? s.transcript ?? []);
     msgs.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
     return { phase, messages: msgs.filter((m) => (m.text ?? m.content ?? "").trim()) };
   }).filter((g) => g.messages.length);
@@ -380,14 +455,31 @@ export interface VentureLike {
   thesis?: string;
 }
 
-export function ventureMarkdown(venture: VentureLike, deliverables: ExportDeliverable[], sessions: ExportSession[], opts: { now?: string } = {}): string {
+export function ventureMarkdown(
+  venture: VentureLike,
+  deliverables: ExportDeliverable[],
+  sessions: ExportSession[],
+  opts: { now?: string } = {},
+): string {
   const ordered = orderVentureDeliverables(deliverables);
-  const ltvInfo = ltvFromFrameworks(deliverables.filter(isFramework).map((d) => ({ framework: d.framework, sections: pickVersion(d).sections, currentVersion: d.currentVersion })));
+  const ltvInfo = ltvFromFrameworks(
+    deliverables.filter(isFramework).map((d) => ({
+      framework: d.framework,
+      sections: pickVersion(d).sections,
+      currentVersion: d.currentVersion,
+    })),
+  );
   const contents = ordered.map((d) => {
     const t = exportTag(d);
     return `${t.framework}@v${t.version}`;
   });
-  const header = frontMatter({ framework: "full-venture", version: 1, venture: venture.name ?? "Venture", contents: contents.join(", "), exported: opts.now ?? new Date().toISOString() });
+  const header = frontMatter({
+    framework: "full-venture",
+    version: 1,
+    venture: venture.name ?? "Venture",
+    contents: contents.join(", "),
+    exported: opts.now ?? new Date().toISOString(),
+  });
   const parts = ordered.map((d) => {
     const t = exportTag(d);
     const v = pickVersion(d);
@@ -401,16 +493,30 @@ export function ventureMarkdown(venture: VentureLike, deliverables: ExportDelive
   const groups = transcriptByPhase(sessions);
   const appendix = groups.length
     ? `# Appendix — Board Transcripts\n\n${groups
-        .map((g) => `## ${PHASE_LABEL[g.phase] ?? g.phase}\n\n${g.messages.map((m) => `**${m.author ?? m.role ?? "Board"}**${m.timestamp ? ` · ${when(m.timestamp)}` : ""}\n\n${(m.text ?? m.content ?? "").trim()}`).join("\n\n---\n\n")}`)
+        .map(
+          (g) =>
+            `## ${PHASE_LABEL[g.phase] ?? g.phase}\n\n${g.messages.map((m) => `**${m.author ?? m.role ?? "Board"}**${m.timestamp ? ` · ${when(m.timestamp)}` : ""}\n\n${(m.text ?? m.content ?? "").trim()}`).join("\n\n---\n\n")}`,
+        )
         .join("\n\n")}`
     : "";
   const intro = `# ${venture.name ?? "Venture"} — Full Venture Export${venture.oneliner || venture.thesis ? `\n\n_${venture.oneliner || venture.thesis}_` : ""}\n\n**Contents:** ${ordered.map((d) => deliverableLabel(d)).join(" → ") || "none yet"}${appendix ? " · Transcripts appendix" : ""}`;
   return `${header}\n\n${[intro, ...parts, appendix].filter(Boolean).join("\n\n")}\n`;
 }
 
-export function ventureHtml(venture: VentureLike, deliverables: ExportDeliverable[], sessions: ExportSession[], opts: { now?: string } = {}): string {
+export function ventureHtml(
+  venture: VentureLike,
+  deliverables: ExportDeliverable[],
+  sessions: ExportSession[],
+  opts: { now?: string } = {},
+): string {
   const ordered = orderVentureDeliverables(deliverables);
-  const ltvInfo = ltvFromFrameworks(deliverables.filter(isFramework).map((d) => ({ framework: d.framework, sections: pickVersion(d).sections, currentVersion: d.currentVersion })));
+  const ltvInfo = ltvFromFrameworks(
+    deliverables.filter(isFramework).map((d) => ({
+      framework: d.framework,
+      sections: pickVersion(d).sections,
+      currentVersion: d.currentVersion,
+    })),
+  );
   const name = venture.name ?? "Venture";
   const parts = ordered.map((d) => {
     const t = exportTag(d);
@@ -421,14 +527,26 @@ export function ventureHtml(venture: VentureLike, deliverables: ExportDeliverabl
   const groups = transcriptByPhase(sessions);
   const appendix = groups.length
     ? `<section class="part"><h1>Appendix — Board Transcripts</h1>${groups
-        .map((g) => `<h2>${escapeHtml(PHASE_LABEL[g.phase] ?? g.phase)}</h2>${g.messages.map((m) => `<h3>${escapeHtml(m.author ?? m.role ?? "Board")}${m.timestamp ? ` <small>· ${when(m.timestamp)}</small>` : ""}</h3>${renderMarkdown((m.text ?? m.content ?? "").trim())}`).join("")}`)
+        .map(
+          (g) =>
+            `<h2>${escapeHtml(PHASE_LABEL[g.phase] ?? g.phase)}</h2>${g.messages.map((m) => `<h3>${escapeHtml(m.author ?? m.role ?? "Board")}${m.timestamp ? ` <small>· ${when(m.timestamp)}</small>` : ""}</h3>${renderMarkdown((m.text ?? m.content ?? "").trim())}`).join("")}`,
+        )
         .join("")}</section>`
     : "";
-  const contents = ordered.map((d) => `${exportTag(d).framework}@v${exportTag(d).version}`).join(", ");
+  const contents = ordered
+    .map((d) => `${exportTag(d).framework}@v${exportTag(d).version}`)
+    .join(", ");
   const head = `<header><h1>${escapeHtml(name)} — Full Venture Export</h1>${tagsHtml({ framework: "full-venture", version: 1, contents: contents || "none", exported: opts.now ?? new Date().toISOString() })}</header>`;
-  return htmlDocument(`${name} — Full Venture Export`, { framework: "full-venture", version: 1 }, `${head}\n${parts.join("\n")}\n${appendix}`);
+  return htmlDocument(
+    `${name} — Full Venture Export`,
+    { framework: "full-venture", version: 1 },
+    `${head}\n${parts.join("\n")}\n${appendix}`,
+  );
 }
 
 export function exportSlug(ventureName: string | undefined, suffix: string): string {
-  return `${(ventureName || "venture").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${suffix}`;
+  return `${(ventureName || "venture")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}-${suffix}`;
 }

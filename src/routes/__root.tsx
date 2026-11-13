@@ -24,10 +24,7 @@ function NotFoundComponent() {
           The page you're looking for doesn't exist or has been moved.
         </p>
         <div className="mt-6">
-          <Link
-            to="/"
-            className="btn btn-primary"
-          >
+          <Link to="/" className="btn btn-primary">
             Back to dashboard
           </Link>
         </div>

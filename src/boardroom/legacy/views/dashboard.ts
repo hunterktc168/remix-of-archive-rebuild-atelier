@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* Ported verbatim from the original Boardroom vanilla JS app; see src/boardroom/AGENTS.md. */
-import { navigateTo, replaceUrlSilently } from '../../nav';
+import { navigateTo, replaceUrlSilently } from "../../nav";
 /**
  * Dashboard View Module
  * Route: #/dashboard
@@ -14,8 +14,16 @@ import { navigateTo, replaceUrlSilently } from '../../nav';
  * - 2-step keyboard-navigable New Venture modal with 140-char live counter and Phase 1 board preview
  */
 
-import { getAll, saveVenture, deleteVenture, duplicateVenture, getVentureStats, setSetting, put } from '../db';
-import { PHASES, PHASE_AGENTS, DEFAULT_AGENTS, THE_CHAIR } from '../agents';
+import {
+  getAll,
+  saveVenture,
+  deleteVenture,
+  duplicateVenture,
+  getVentureStats,
+  setSetting,
+  put,
+} from "../db";
+import { PHASES, PHASE_AGENTS, DEFAULT_AGENTS, THE_CHAIR } from "../agents";
 
 // Tracks the active document-level Escape listener so re-renders don't leak listeners.
 let escapeKeyHandler = null;
@@ -23,53 +31,63 @@ let escapeKeyHandler = null;
 // Pre-configured Starter Venture Templates
 export const SAMPLE_TEMPLATES = [
   {
-    name: 'PulseMetrics',
-    oneliner: 'Automated telemetry and churn prediction for mid-market vertical SaaS platforms.',
-    industry: 'Enterprise Software',
-    stage: 'Prototype',
-    biggestUnknown: 'Willingness of VP Customer Success to replace existing spreadsheets with automated health scores.',
-    welcomeMessage: 'Welcome to Boardroom, founder. Maya Chen, David Okafor, and Sam Torres have convened for Phase 1: Ideation on PulseMetrics. Today we stress-test whether predictive churn scores create an authentic asymmetric wedge.'
+    name: "PulseMetrics",
+    oneliner: "Automated telemetry and churn prediction for mid-market vertical SaaS platforms.",
+    industry: "Enterprise Software",
+    stage: "Prototype",
+    biggestUnknown:
+      "Willingness of VP Customer Success to replace existing spreadsheets with automated health scores.",
+    welcomeMessage:
+      "Welcome to Boardroom, founder. Maya Chen, David Okafor, and Sam Torres have convened for Phase 1: Ideation on PulseMetrics. Today we stress-test whether predictive churn scores create an authentic asymmetric wedge.",
   },
   {
-    name: 'AuraBotanica',
-    oneliner: 'Clinically formulated adaptogenic hydration sticks for endurance athletes and high-output founders.',
-    industry: 'Consumer Goods',
-    stage: 'Idea',
-    biggestUnknown: 'Can organic retention overcome rising paid social CAC on Meta and TikTok?',
-    welcomeMessage: 'Welcome to Boardroom. The directors are assembled for Phase 1: Ideation on AuraBotanica. We are examining customer habit formation, contribution margin floors, and organic wedge channels.'
+    name: "AuraBotanica",
+    oneliner:
+      "Clinically formulated adaptogenic hydration sticks for endurance athletes and high-output founders.",
+    industry: "Consumer Goods",
+    stage: "Idea",
+    biggestUnknown: "Can organic retention overcome rising paid social CAC on Meta and TikTok?",
+    welcomeMessage:
+      "Welcome to Boardroom. The directors are assembled for Phase 1: Ideation on AuraBotanica. We are examining customer habit formation, contribution margin floors, and organic wedge channels.",
   },
   {
-    name: 'MachinistHub',
-    oneliner: 'On-demand B2B matching marketplace connecting aerospace engineers with idle CNC milling capacity.',
-    industry: 'Manufacturing',
-    stage: 'Idea',
-    biggestUnknown: 'Chicken-and-egg liquidity: will machine shops quote jobs without guaranteed contract minimums?',
-    welcomeMessage: 'The board will come to order. We are reviewing the marketplace dynamics of MachinistHub in Phase 1: Ideation. We will analyze supply-side liquidity, take-rate elasticity, and cold-start wedge strategies.'
+    name: "MachinistHub",
+    oneliner:
+      "On-demand B2B matching marketplace connecting aerospace engineers with idle CNC milling capacity.",
+    industry: "Manufacturing",
+    stage: "Idea",
+    biggestUnknown:
+      "Chicken-and-egg liquidity: will machine shops quote jobs without guaranteed contract minimums?",
+    welcomeMessage:
+      "The board will come to order. We are reviewing the marketplace dynamics of MachinistHub in Phase 1: Ideation. We will analyze supply-side liquidity, take-rate elasticity, and cold-start wedge strategies.",
   },
   {
-    name: 'FleetClean Pro',
-    oneliner: 'Automated overnight mobile fleet detailing and maintenance for commercial delivery vans.',
-    industry: 'Logistics',
-    stage: 'Early Revenue',
-    biggestUnknown: 'Unit labor economics: route density required to achieve positive nightly gross margin.',
-    welcomeMessage: 'Welcome to Boardroom. Phase 1: Ideation is convened for FleetClean Pro. David Okafor and Sam Torres are reviewing route density assumptions and customer contract lock-in.'
-  }
+    name: "FleetClean Pro",
+    oneliner:
+      "Automated overnight mobile fleet detailing and maintenance for commercial delivery vans.",
+    industry: "Logistics",
+    stage: "Early Revenue",
+    biggestUnknown:
+      "Unit labor economics: route density required to achieve positive nightly gross margin.",
+    welcomeMessage:
+      "Welcome to Boardroom. Phase 1: Ideation is convened for FleetClean Pro. David Okafor and Sam Torres are reviewing route density assumptions and customer contract lock-in.",
+  },
 ];
 
 // Helper: Relative time formatter
 function formatRelativeTime(timestamp) {
-  if (!timestamp) return 'Recently';
+  if (!timestamp) return "Recently";
   const diffSec = Math.floor((Date.now() - timestamp) / 1000);
-  if (diffSec < 60) return 'Just now';
+  if (diffSec < 60) return "Just now";
   if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
   if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
   if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d ago`;
-  return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export async function render(container, params = {}) {
   // Update Topbar action slot
-  const actionSlot = document.getElementById('topbar-action-slot');
+  const actionSlot = document.getElementById("topbar-action-slot");
   if (actionSlot) {
     actionSlot.innerHTML = `
       <button id="topbar-new-venture-btn" class="btn btn-primary text-xs py-1.5 px-3">
@@ -82,8 +100,8 @@ export async function render(container, params = {}) {
   }
 
   // Load all ventures
-  let ventures = await getAll('ventures');
-  
+  let ventures = await getAll("ventures");
+
   // Calculate stats for each venture
   const ventureStats = {};
   for (const v of ventures) {
@@ -203,23 +221,26 @@ export async function render(container, params = {}) {
 
   // Filter & Render logic
   function renderGrid() {
-    const gridContainer = document.getElementById('ventures-grid-container');
+    const gridContainer = document.getElementById("ventures-grid-container");
     if (!gridContainer) return;
 
-    const searchTerm = (document.getElementById('venture-search-input')?.value || '').toLowerCase().trim();
-    const sortVal = document.getElementById('venture-sort-select')?.value || 'updated_desc';
+    const searchTerm = (document.getElementById("venture-search-input")?.value || "")
+      .toLowerCase()
+      .trim();
+    const sortVal = document.getElementById("venture-sort-select")?.value || "updated_desc";
 
     // Filter
-    let filtered = ventures.filter(v => 
-      v.name.toLowerCase().includes(searchTerm) || 
-      (v.oneliner && v.oneliner.toLowerCase().includes(searchTerm)) ||
-      (v.industry && v.industry.toLowerCase().includes(searchTerm))
+    let filtered = ventures.filter(
+      (v) =>
+        v.name.toLowerCase().includes(searchTerm) ||
+        (v.oneliner && v.oneliner.toLowerCase().includes(searchTerm)) ||
+        (v.industry && v.industry.toLowerCase().includes(searchTerm)),
     );
 
     // Sort
-    if (sortVal === 'name_asc') {
+    if (sortVal === "name_asc") {
       filtered.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortVal === 'created_desc') {
+    } else if (sortVal === "created_desc") {
       filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } else {
       // updated_desc
@@ -254,7 +275,7 @@ export async function render(container, params = {}) {
     // Render Cards Grid
     gridContainer.innerHTML = `
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        ${filtered.map(v => renderVentureCard(v, ventureStats[v.id] || { messageCount: 0, deliverableCount: 0 })).join('')}
+        ${filtered.map((v) => renderVentureCard(v, ventureStats[v.id] || { messageCount: 0, deliverableCount: 0 })).join("")}
       </div>
     `;
 
@@ -265,19 +286,19 @@ export async function render(container, params = {}) {
   renderGrid();
 
   // Search & Sort event listeners
-  document.getElementById('venture-search-input')?.addEventListener('input', renderGrid);
-  document.getElementById('venture-sort-select')?.addEventListener('change', renderGrid);
+  document.getElementById("venture-search-input")?.addEventListener("input", renderGrid);
+  document.getElementById("venture-sort-select")?.addEventListener("change", renderGrid);
 
   // Wire Modal triggers
-  document.getElementById('hero-new-venture-btn')?.addEventListener('click', openNewVentureModal);
-  document.getElementById('topbar-new-venture-btn')?.addEventListener('click', openNewVentureModal);
+  document.getElementById("hero-new-venture-btn")?.addEventListener("click", openNewVentureModal);
+  document.getElementById("topbar-new-venture-btn")?.addEventListener("click", openNewVentureModal);
 
   // Wire template cloners in empty state
   function wireTemplateCloners() {
-    const cloneBtns = container.querySelectorAll('.clone-template-btn');
-    cloneBtns.forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const index = parseInt(btn.getAttribute('data-template-index'), 10);
+    const cloneBtns = container.querySelectorAll(".clone-template-btn");
+    cloneBtns.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        const index = parseInt(btn.getAttribute("data-template-index"), 10);
         const template = SAMPLE_TEMPLATES[index];
         if (template) {
           await createVentureFromTemplate(template);
@@ -289,46 +310,47 @@ export async function render(container, params = {}) {
   // Wire Action buttons (Open, Rename, Duplicate, Delete)
   function wireCardActions() {
     // Open action
-    container.querySelectorAll('.open-venture-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-id');
-        const v = ventures.find(item => item.id === id);
+    container.querySelectorAll(".open-venture-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-id");
+        const v = ventures.find((item) => item.id === id);
         if (v) {
-          await setSetting('active_venture_id', v.id);
-          await setSetting('active_venture_name', v.name);
+          await setSetting("active_venture_id", v.id);
+          await setSetting("active_venture_name", v.name);
           navigateTo(`/venture/${v.id}/boardroom`);
         }
       });
     });
 
     // Rename action
-    container.querySelectorAll('.rename-venture-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    container.querySelectorAll(".rename-venture-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const id = btn.getAttribute('data-id');
-        const v = ventures.find(item => item.id === id);
+        const id = btn.getAttribute("data-id");
+        const v = ventures.find((item) => item.id === id);
         if (v) openRenameModal(v);
       });
     });
 
     // Duplicate action
-    container.querySelectorAll('.duplicate-venture-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    container.querySelectorAll(".duplicate-venture-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        const id = btn.getAttribute('data-id');
+        const id = btn.getAttribute("data-id");
         btn.disabled = true;
         try {
           const copy = await duplicateVenture(id);
-          ventures = await getAll('ventures');
+          ventures = await getAll("ventures");
           ventureStats[copy.id] = await getVentureStats(copy.id);
           renderGrid();
         } catch (err) {
-          console.error('Failed to duplicate venture:', err);
+          console.error("Failed to duplicate venture:", err);
           btn.disabled = false;
-          const card = btn.closest('.panel');
+          const card = btn.closest(".panel");
           if (card) {
-            const errEl = document.createElement('div');
-            errEl.className = 'text-[11px] text-danger font-mono mt-2 p-1.5 rounded bg-danger/10 border border-danger/30';
+            const errEl = document.createElement("div");
+            errEl.className =
+              "text-[11px] text-danger font-mono mt-2 p-1.5 rounded bg-danger/10 border border-danger/30";
             errEl.textContent = `Duplication failed: ${err.message}`;
             card.appendChild(errEl);
             setTimeout(() => errEl.remove(), 4000);
@@ -338,11 +360,11 @@ export async function render(container, params = {}) {
     });
 
     // Delete action
-    container.querySelectorAll('.delete-venture-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    container.querySelectorAll(".delete-venture-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const id = btn.getAttribute('data-id');
-        const v = ventures.find(item => item.id === id);
+        const id = btn.getAttribute("data-id");
+        const v = ventures.find((item) => item.id === id);
         if (v) openDeleteModal(v);
       });
     });
@@ -352,29 +374,29 @@ export async function render(container, params = {}) {
   let renamingVenture = null;
   function openRenameModal(venture) {
     renamingVenture = venture;
-    const modal = document.getElementById('rename-modal-backdrop');
-    const input = document.getElementById('rename-input');
+    const modal = document.getElementById("rename-modal-backdrop");
+    const input = document.getElementById("rename-input");
     if (modal && input) {
       input.value = venture.name;
-      modal.classList.remove('hidden');
+      modal.classList.remove("hidden");
       input.focus();
     }
   }
 
-  document.getElementById('cancel-rename-btn')?.addEventListener('click', () => {
-    document.getElementById('rename-modal-backdrop')?.classList.add('hidden');
+  document.getElementById("cancel-rename-btn")?.addEventListener("click", () => {
+    document.getElementById("rename-modal-backdrop")?.classList.add("hidden");
     renamingVenture = null;
   });
 
-  document.getElementById('confirm-rename-btn')?.addEventListener('click', async () => {
-    const input = document.getElementById('rename-input');
+  document.getElementById("confirm-rename-btn")?.addEventListener("click", async () => {
+    const input = document.getElementById("rename-input");
     const newName = input?.value.trim();
     if (newName && renamingVenture) {
       renamingVenture.name = newName;
       renamingVenture.updatedAt = Date.now();
       await saveVenture(renamingVenture);
-      document.getElementById('rename-modal-backdrop')?.classList.add('hidden');
-      ventures = await getAll('ventures');
+      document.getElementById("rename-modal-backdrop")?.classList.add("hidden");
+      ventures = await getAll("ventures");
       renderGrid();
     }
   });
@@ -383,64 +405,64 @@ export async function render(container, params = {}) {
   let deletingVenture = null;
   function openDeleteModal(venture) {
     deletingVenture = venture;
-    const modal = document.getElementById('delete-modal-backdrop');
-    const msg = document.getElementById('delete-modal-msg');
+    const modal = document.getElementById("delete-modal-backdrop");
+    const msg = document.getElementById("delete-modal-msg");
     if (modal && msg) {
       msg.textContent = `Are you sure you want to permanently delete "${venture.name}"? All recorded sessions, transcripts, and deliverables will be removed.`;
-      modal.classList.remove('hidden');
+      modal.classList.remove("hidden");
     }
   }
 
-  document.getElementById('cancel-delete-btn')?.addEventListener('click', () => {
-    document.getElementById('delete-modal-backdrop')?.classList.add('hidden');
+  document.getElementById("cancel-delete-btn")?.addEventListener("click", () => {
+    document.getElementById("delete-modal-backdrop")?.classList.add("hidden");
     deletingVenture = null;
   });
 
-  document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
+  document.getElementById("confirm-delete-btn")?.addEventListener("click", async () => {
     if (deletingVenture) {
       await deleteVenture(deletingVenture.id);
-      document.getElementById('delete-modal-backdrop')?.classList.add('hidden');
-      ventures = await getAll('ventures');
+      document.getElementById("delete-modal-backdrop")?.classList.add("hidden");
+      ventures = await getAll("ventures");
       renderGrid();
     }
   });
 
   // Backdrop-click close for all three modals (inner panel stops propagation via onclick)
-  const newVentureBackdrop = document.getElementById('new-venture-modal-backdrop');
-  const renameBackdrop = document.getElementById('rename-modal-backdrop');
-  const deleteBackdrop = document.getElementById('delete-modal-backdrop');
+  const newVentureBackdrop = document.getElementById("new-venture-modal-backdrop");
+  const renameBackdrop = document.getElementById("rename-modal-backdrop");
+  const deleteBackdrop = document.getElementById("delete-modal-backdrop");
 
-  newVentureBackdrop?.addEventListener('click', (e) => {
+  newVentureBackdrop?.addEventListener("click", (e) => {
     if (e.target === newVentureBackdrop) closeNewVentureModal();
   });
-  renameBackdrop?.addEventListener('click', (e) => {
+  renameBackdrop?.addEventListener("click", (e) => {
     if (e.target === renameBackdrop) {
-      renameBackdrop.classList.add('hidden');
+      renameBackdrop.classList.add("hidden");
       renamingVenture = null;
     }
   });
-  deleteBackdrop?.addEventListener('click', (e) => {
+  deleteBackdrop?.addEventListener("click", (e) => {
     if (e.target === deleteBackdrop) {
-      deleteBackdrop.classList.add('hidden');
+      deleteBackdrop.classList.add("hidden");
       deletingVenture = null;
     }
   });
 
   // Escape closes whichever dashboard modal is open (single shared listener, rebind-safe)
-  if (escapeKeyHandler) document.removeEventListener('keydown', escapeKeyHandler);
+  if (escapeKeyHandler) document.removeEventListener("keydown", escapeKeyHandler);
   escapeKeyHandler = (e) => {
-    if (e.key !== 'Escape') return;
-    if (newVentureBackdrop && !newVentureBackdrop.classList.contains('hidden')) {
+    if (e.key !== "Escape") return;
+    if (newVentureBackdrop && !newVentureBackdrop.classList.contains("hidden")) {
       closeNewVentureModal();
-    } else if (renameBackdrop && !renameBackdrop.classList.contains('hidden')) {
-      renameBackdrop.classList.add('hidden');
+    } else if (renameBackdrop && !renameBackdrop.classList.contains("hidden")) {
+      renameBackdrop.classList.add("hidden");
       renamingVenture = null;
-    } else if (deleteBackdrop && !deleteBackdrop.classList.contains('hidden')) {
-      deleteBackdrop.classList.add('hidden');
+    } else if (deleteBackdrop && !deleteBackdrop.classList.contains("hidden")) {
+      deleteBackdrop.classList.add("hidden");
       deletingVenture = null;
     }
   };
-  document.addEventListener('keydown', escapeKeyHandler);
+  document.addEventListener("keydown", escapeKeyHandler);
 }
 
 /**
@@ -448,7 +470,7 @@ export async function render(container, params = {}) {
  */
 function renderVentureCard(venture, stats) {
   const completedPhases = venture.completedPhases || [];
-  
+
   return `
     <div class="panel p-5 border-subtle hover:border-border-strong transition-all flex flex-col justify-between group">
       <div>
@@ -456,10 +478,10 @@ function renderVentureCard(venture, stats) {
         <div class="flex items-start justify-between gap-2 mb-2.5">
           <div class="flex items-center gap-1.5 flex-wrap">
             <span class="chip text-[11px] py-0 px-2 bg-base font-medium text-slate-300">
-              ${escapeHtml(venture.industry || 'Tech')}
+              ${escapeHtml(venture.industry || "Tech")}
             </span>
             <span class="chip text-[11px] py-0 px-2 bg-brass/10 border-brass/30 text-brass-light font-medium">
-              ${escapeHtml(venture.stage || 'Idea')}
+              ${escapeHtml(venture.stage || "Idea")}
             </span>
           </div>
           <span class="text-[11px] font-mono text-muted shrink-0">
@@ -472,7 +494,7 @@ function renderVentureCard(venture, stats) {
           ${escapeHtml(venture.name)}
         </h3>
         <p class="text-xs text-muted leading-relaxed line-clamp-2 mb-4">
-          ${escapeHtml(venture.oneliner || 'No description provided.')}
+          ${escapeHtml(venture.oneliner || "No description provided.")}
         </p>
 
         <!-- 4-Phase Progress Dots -->
@@ -485,9 +507,9 @@ function renderVentureCard(venture, stats) {
             ${PHASES.map((p, idx) => {
               const isDone = completedPhases.includes(p.id);
               return `
-                <div class="h-1.5 rounded-full transition-colors ${isDone ? 'bg-brass' : 'bg-subtle'}" title="Phase 0${idx+1}: ${p.label} (${isDone ? 'Completed' : 'Pending'})"></div>
+                <div class="h-1.5 rounded-full transition-colors ${isDone ? "bg-brass" : "bg-subtle"}" title="Phase 0${idx + 1}: ${p.label} (${isDone ? "Completed" : "Pending"})"></div>
               `;
-            }).join('')}
+            }).join("")}
           </div>
           <div class="flex justify-between text-[9px] font-mono text-faint mt-1">
             <span>01 IDE</span>
@@ -576,7 +598,8 @@ function renderEmptyStateWithTemplates() {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          ${SAMPLE_TEMPLATES.map((tmpl, idx) => `
+          ${SAMPLE_TEMPLATES.map(
+            (tmpl, idx) => `
             <div class="panel p-5 border-subtle hover:border-brass/40 transition-all flex flex-col justify-between group">
               <div>
                 <div class="flex items-center justify-between mb-2">
@@ -606,7 +629,8 @@ function renderEmptyStateWithTemplates() {
                 </button>
               </div>
             </div>
-          `).join('')}
+          `,
+          ).join("")}
         </div>
       </div>
     </div>
@@ -624,30 +648,30 @@ async function createVentureFromTemplate(template) {
     industry: template.industry,
     stage: template.stage,
     biggestUnknown: template.biggestUnknown,
-    completedPhases: []
+    completedPhases: [],
   });
 
   // Seed welcome session in Phase 1: Ideation
   const sessionId = `s_${venture.id}_ideation`;
-  await put('sessions', {
+  await put("sessions", {
     id: sessionId,
     ventureId: venture.id,
-    phase: 'ideation',
+    phase: "ideation",
     messages: [
       {
         id: `m_${Date.now()}`,
-        author: 'The Chair',
-        role: 'chair',
+        author: "The Chair",
+        role: "chair",
         text: template.welcomeMessage,
-        timestamp: Date.now()
-      }
+        timestamp: Date.now(),
+      },
     ],
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
   });
 
   // Set active
-  await setSetting('active_venture_id', venture.id);
-  await setSetting('active_venture_name', venture.name);
+  await setSetting("active_venture_id", venture.id);
+  await setSetting("active_venture_name", venture.name);
 
   // Navigate to boardroom
   navigateTo(`/venture/${venture.id}/boardroom`);
@@ -658,41 +682,41 @@ async function createVentureFromTemplate(template) {
  */
 let newVentureState = {
   step: 1,
-  name: '',
-  oneliner: '',
-  industry: 'Enterprise Software',
-  stage: 'Idea',
-  biggestUnknown: ''
+  name: "",
+  oneliner: "",
+  industry: "Enterprise Software",
+  stage: "Idea",
+  biggestUnknown: "",
 };
 
 function openNewVentureModal() {
   newVentureState = {
     step: 1,
-    name: '',
-    oneliner: '',
-    industry: 'Enterprise Software',
-    stage: 'Idea',
-    biggestUnknown: ''
+    name: "",
+    oneliner: "",
+    industry: "Enterprise Software",
+    stage: "Idea",
+    biggestUnknown: "",
   };
 
-  const backdrop = document.getElementById('new-venture-modal-backdrop');
+  const backdrop = document.getElementById("new-venture-modal-backdrop");
   if (backdrop) {
-    backdrop.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
+    backdrop.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
     renderModalStep();
   }
 }
 
 function closeNewVentureModal() {
-  const backdrop = document.getElementById('new-venture-modal-backdrop');
+  const backdrop = document.getElementById("new-venture-modal-backdrop");
   if (backdrop) {
-    backdrop.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    backdrop.classList.add("hidden");
+    document.body.classList.remove("overflow-hidden");
   }
 }
 
 function renderModalStep() {
-  const container = document.getElementById('new-venture-modal-content');
+  const container = document.getElementById("new-venture-modal-content");
   if (!container) return;
 
   if (newVentureState.step === 1) {
@@ -758,15 +782,15 @@ function renderModalStep() {
               Industry Domain
             </label>
             <select id="nv-industry" class="input text-xs bg-base">
-              <option ${newVentureState.industry === 'Enterprise Software' ? 'selected' : ''}>Enterprise Software</option>
-              <option ${newVentureState.industry === 'FinTech' ? 'selected' : ''}>FinTech</option>
-              <option ${newVentureState.industry === 'Healthcare' ? 'selected' : ''}>Healthcare</option>
-              <option ${newVentureState.industry === 'E-Commerce' ? 'selected' : ''}>E-Commerce</option>
-              <option ${newVentureState.industry === 'Consumer Goods' ? 'selected' : ''}>Consumer Goods</option>
-              <option ${newVentureState.industry === 'Manufacturing' ? 'selected' : ''}>Manufacturing</option>
-              <option ${newVentureState.industry === 'Logistics' ? 'selected' : ''}>Logistics</option>
-              <option ${newVentureState.industry === 'AI / DevTools' ? 'selected' : ''}>AI / DevTools</option>
-              <option ${newVentureState.industry === 'Other' ? 'selected' : ''}>Other</option>
+              <option ${newVentureState.industry === "Enterprise Software" ? "selected" : ""}>Enterprise Software</option>
+              <option ${newVentureState.industry === "FinTech" ? "selected" : ""}>FinTech</option>
+              <option ${newVentureState.industry === "Healthcare" ? "selected" : ""}>Healthcare</option>
+              <option ${newVentureState.industry === "E-Commerce" ? "selected" : ""}>E-Commerce</option>
+              <option ${newVentureState.industry === "Consumer Goods" ? "selected" : ""}>Consumer Goods</option>
+              <option ${newVentureState.industry === "Manufacturing" ? "selected" : ""}>Manufacturing</option>
+              <option ${newVentureState.industry === "Logistics" ? "selected" : ""}>Logistics</option>
+              <option ${newVentureState.industry === "AI / DevTools" ? "selected" : ""}>AI / DevTools</option>
+              <option ${newVentureState.industry === "Other" ? "selected" : ""}>Other</option>
             </select>
           </div>
 
@@ -775,10 +799,10 @@ function renderModalStep() {
               Venture Stage
             </label>
             <select id="nv-stage" class="input text-xs bg-base">
-              <option ${newVentureState.stage === 'Idea' ? 'selected' : ''}>Idea</option>
-              <option ${newVentureState.stage === 'Prototype' ? 'selected' : ''}>Prototype</option>
-              <option ${newVentureState.stage === 'Early Revenue' ? 'selected' : ''}>Early Revenue</option>
-              <option ${newVentureState.stage === 'Growth' ? 'selected' : ''}>Growth</option>
+              <option ${newVentureState.stage === "Idea" ? "selected" : ""}>Idea</option>
+              <option ${newVentureState.stage === "Prototype" ? "selected" : ""}>Prototype</option>
+              <option ${newVentureState.stage === "Early Revenue" ? "selected" : ""}>Early Revenue</option>
+              <option ${newVentureState.stage === "Growth" ? "selected" : ""}>Growth</option>
             </select>
           </div>
         </div>
@@ -809,41 +833,43 @@ function renderModalStep() {
     `;
 
     // Live character counter
-    const onelinerInput = document.getElementById('nv-oneliner');
-    const onelinerCounter = document.getElementById('oneliner-counter');
+    const onelinerInput = document.getElementById("nv-oneliner");
+    const onelinerCounter = document.getElementById("oneliner-counter");
     if (onelinerInput && onelinerCounter) {
-      onelinerInput.addEventListener('input', (e) => {
+      onelinerInput.addEventListener("input", (e) => {
         const len = e.target.value.length;
         onelinerCounter.textContent = `${len}/140`;
         if (len >= 135) {
-          onelinerCounter.classList.add('text-brass-light');
+          onelinerCounter.classList.add("text-brass-light");
         } else {
-          onelinerCounter.classList.remove('text-brass-light');
+          onelinerCounter.classList.remove("text-brass-light");
         }
       });
     }
 
     // Close button
-    document.getElementById('close-modal-x-btn')?.addEventListener('click', closeNewVentureModal);
-    document.getElementById('step1-cancel-btn')?.addEventListener('click', closeNewVentureModal);
+    document.getElementById("close-modal-x-btn")?.addEventListener("click", closeNewVentureModal);
+    document.getElementById("step1-cancel-btn")?.addEventListener("click", closeNewVentureModal);
 
     // Form submit -> Step 2
-    document.getElementById('new-venture-step1-form')?.addEventListener('submit', (e) => {
+    document.getElementById("new-venture-step1-form")?.addEventListener("submit", (e) => {
       e.preventDefault();
-      newVentureState.name = document.getElementById('nv-name')?.value.trim();
-      newVentureState.oneliner = document.getElementById('nv-oneliner')?.value.trim();
-      newVentureState.industry = document.getElementById('nv-industry')?.value;
-      newVentureState.stage = document.getElementById('nv-stage')?.value;
-      newVentureState.biggestUnknown = document.getElementById('nv-unknown')?.value.trim();
+      newVentureState.name = document.getElementById("nv-name")?.value.trim();
+      newVentureState.oneliner = document.getElementById("nv-oneliner")?.value.trim();
+      newVentureState.industry = document.getElementById("nv-industry")?.value;
+      newVentureState.stage = document.getElementById("nv-stage")?.value;
+      newVentureState.biggestUnknown = document.getElementById("nv-unknown")?.value.trim();
 
       newVentureState.step = 2;
       renderModalStep();
     });
-
   } else {
     // Step 2: Board Preview for Ideation
-    const ideationAgentIds = PHASE_AGENTS['ideation'] || ['maya', 'sam', 'david'];
-    const assignedAgents = [THE_CHAIR, ...DEFAULT_AGENTS.filter(a => ideationAgentIds.includes(a.id))];
+    const ideationAgentIds = PHASE_AGENTS["ideation"] || ["maya", "sam", "david"];
+    const assignedAgents = [
+      THE_CHAIR,
+      ...DEFAULT_AGENTS.filter((a) => ideationAgentIds.includes(a.id)),
+    ];
 
     container.innerHTML = `
       <div class="flex items-start justify-between pb-3 border-b border-subtle">
@@ -878,7 +904,9 @@ function renderModalStep() {
             Your Board at the Table (Phase 1 Ideation Quorum):
           </h4>
           <div class="grid grid-cols-2 gap-2">
-            ${assignedAgents.map(a => `
+            ${assignedAgents
+              .map(
+                (a) => `
               <div class="p-2.5 rounded bg-base border border-subtle flex items-center gap-2.5">
                 <span class="avatar w-8 h-8 text-xs agent-${a.color}-bg agent-${a.color} border-base font-mono font-bold shrink-0">
                   ${a.initials}
@@ -888,7 +916,9 @@ function renderModalStep() {
                   <div class="text-[10px] text-muted truncate">${a.role}</div>
                 </div>
               </div>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </div>
         </div>
 
@@ -909,15 +939,15 @@ function renderModalStep() {
       </div>
     `;
 
-    document.getElementById('close-modal-x-btn')?.addEventListener('click', closeNewVentureModal);
+    document.getElementById("close-modal-x-btn")?.addEventListener("click", closeNewVentureModal);
 
-    document.getElementById('step2-back-btn')?.addEventListener('click', () => {
+    document.getElementById("step2-back-btn")?.addEventListener("click", () => {
       newVentureState.step = 1;
       renderModalStep();
     });
 
-    document.getElementById('launch-venture-btn')?.addEventListener('click', async () => {
-      const launchBtn = document.getElementById('launch-venture-btn');
+    document.getElementById("launch-venture-btn")?.addEventListener("click", async () => {
+      const launchBtn = document.getElementById("launch-venture-btn");
       if (launchBtn) launchBtn.disabled = true;
 
       // 1. Save venture to IndexedDB
@@ -928,7 +958,7 @@ function renderModalStep() {
         industry: newVentureState.industry,
         stage: newVentureState.stage,
         biggestUnknown: newVentureState.biggestUnknown,
-        completedPhases: []
+        completedPhases: [],
       });
 
       // 2. Create initial system message in ideation welcoming the founder
@@ -937,25 +967,25 @@ function renderModalStep() {
 Maya Chen, David Okafor, and Sam Torres are seated at the table. Our objective today is to explore contrarian wedge opportunities, examine customer jobs-to-be-done, and establish our foundational hypothesis testing roadmap.`;
 
       const sessionId = `s_${venture.id}_ideation`;
-      await put('sessions', {
+      await put("sessions", {
         id: sessionId,
         ventureId: venture.id,
-        phase: 'ideation',
+        phase: "ideation",
         messages: [
           {
             id: `m_${Date.now()}`,
-            author: 'The Chair',
-            role: 'chair',
+            author: "The Chair",
+            role: "chair",
             text: welcomeText,
-            timestamp: Date.now()
-          }
+            timestamp: Date.now(),
+          },
         ],
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       });
 
       // 3. Set as active venture
-      await setSetting('active_venture_id', venture.id);
-      await setSetting('active_venture_name', venture.name);
+      await setSetting("active_venture_id", venture.id);
+      await setSetting("active_venture_name", venture.name);
 
       closeNewVentureModal();
 
@@ -966,10 +996,10 @@ Maya Chen, David Okafor, and Sam Torres are seated at the table. Our objective t
 }
 
 function escapeHtml(str) {
-  return (str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return (str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

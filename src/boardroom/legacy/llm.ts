@@ -11,8 +11,13 @@
  * 4. gemini — Google Gemini streamGenerateContent SSE
  */
 
-import { getSetting } from './db';
-import { mockFrameworkDoc, mockRepairResponse, mockMarcusReplan, mockElenaReview } from './mockFrameworks';
+import { getSetting } from "./db";
+import {
+  mockFrameworkDoc,
+  mockRepairResponse,
+  mockMarcusReplan,
+  mockElenaReview,
+} from "./mockFrameworks";
 
 /**
  * Read an error body safely. The response body can only be consumed once, so we
@@ -21,17 +26,17 @@ import { mockFrameworkDoc, mockRepairResponse, mockMarcusReplan, mockElenaReview
  * read" on non-JSON error pages.)
  */
 async function readErrorBody(response) {
-  let raw = '';
+  let raw = "";
   try {
     raw = await response.text();
   } catch (e) {
-    return response.statusText || 'Unknown error';
+    return response.statusText || "Unknown error";
   }
   try {
     const parsed = JSON.parse(raw);
     return parsed?.error?.message || response.statusText || raw;
   } catch (e) {
-    return raw.trim() || response.statusText || 'Unknown error';
+    return raw.trim() || response.statusText || "Unknown error";
   }
 }
 
@@ -41,12 +46,12 @@ async function readErrorBody(response) {
 function formatOpenAIMessages(system, messages = []) {
   const result = [];
   if (system) {
-    result.push({ role: 'system', content: system });
+    result.push({ role: "system", content: system });
   }
   for (const m of messages) {
     result.push({
-      role: m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content || m.text || ''
+      role: m.role === "model" || m.role === "assistant" ? "assistant" : "user",
+      content: m.content || m.text || "",
     });
   }
   return result;
@@ -58,14 +63,14 @@ function formatOpenAIMessages(system, messages = []) {
 function formatAnthropicMessages(messages = []) {
   const result = [];
   for (const m of messages) {
-    if (m.role === 'system') continue; // Anthropic expects system as top-level parameter
+    if (m.role === "system") continue; // Anthropic expects system as top-level parameter
     result.push({
-      role: m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content || m.text || ''
+      role: m.role === "model" || m.role === "assistant" ? "assistant" : "user",
+      content: m.content || m.text || "",
     });
   }
   if (result.length === 0) {
-    result.push({ role: 'user', content: 'Begin board deliberation.' });
+    result.push({ role: "user", content: "Begin board deliberation." });
   }
   return result;
 }
@@ -75,12 +80,12 @@ function formatAnthropicMessages(messages = []) {
  */
 function formatGeminiContents(messages = []) {
   if (!messages || messages.length === 0) {
-    return [{ role: 'user', parts: [{ text: 'Initiate board deliberation.' }] }];
+    return [{ role: "user", parts: [{ text: "Initiate board deliberation." }] }];
   }
 
-  return messages.map(m => ({
-    role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content || m.text || '' }]
+  return messages.map((m) => ({
+    role: m.role === "model" || m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content || m.text || "" }],
   }));
 }
 
@@ -89,29 +94,29 @@ function formatGeminiContents(messages = []) {
  */
 async function* parseSSEStream(response, onDataChunk, signal) {
   const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
 
   try {
     while (true) {
       if (signal && signal.aborted) {
-        throw new DOMException('Operation aborted by user', 'AbortError');
+        throw new DOMException("Operation aborted by user", "AbortError");
       }
 
       const { done, value } = await reader.read();
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // Keep partial line in buffer
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || ""; // Keep partial line in buffer
 
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith(':')) continue;
+        if (!trimmed || trimmed.startsWith(":")) continue;
 
-        if (trimmed.startsWith('data:')) {
+        if (trimmed.startsWith("data:")) {
           const dataStr = trimmed.slice(5).trim();
-          if (dataStr === '[DONE]') {
+          if (dataStr === "[DONE]") {
             return;
           }
           const textChunk = onDataChunk(dataStr);
@@ -123,9 +128,9 @@ async function* parseSSEStream(response, onDataChunk, signal) {
     }
 
     // Leftover buffer
-    if (buffer.trim().startsWith('data:')) {
+    if (buffer.trim().startsWith("data:")) {
       const dataStr = buffer.trim().slice(5).trim();
-      if (dataStr && dataStr !== '[DONE]') {
+      if (dataStr && dataStr !== "[DONE]") {
         const textChunk = onDataChunk(dataStr);
         if (textChunk) yield textChunk;
       }
@@ -148,29 +153,35 @@ async function* parseSSEStream(response, onDataChunk, signal) {
  */
 export class MockProvider {
   constructor(config = {}) {
-    this.name = 'mock';
+    this.name = "mock";
   }
 
   validateConfig() {
-    return { ok: true, message: 'Mock provider active (100% offline, zero network, zero keys).' };
+    return { ok: true, message: "Mock provider active (100% offline, zero network, zero keys)." };
   }
 
   _detectAgentId(meta, system) {
     if (meta && meta.agentId) return meta.agentId.toLowerCase();
-    const sys = (system || '').toLowerCase();
-    if (sys.includes('maya chen') || sys.includes('chief innovation officer')) return 'maya';
-    if (sys.includes('david okafor') || sys.includes('validation partner')) return 'david';
-    if (sys.includes('priya raman') || sys.includes('coo') || sys.includes('strategy')) return 'priya';
-    if (sys.includes('marcus webb') || sys.includes('chief marketing officer')) return 'marcus';
-    if (sys.includes('elena vasquez') || sys.includes('chief financial officer')) return 'elena';
-    if (sys.includes('sam torres') || sys.includes('head of product') || sys.includes('customer advocate')) return 'sam';
-    if (sys.includes('the chair') || sys.includes('chief of staff')) return 'chair';
-    return 'director';
+    const sys = (system || "").toLowerCase();
+    if (sys.includes("maya chen") || sys.includes("chief innovation officer")) return "maya";
+    if (sys.includes("david okafor") || sys.includes("validation partner")) return "david";
+    if (sys.includes("priya raman") || sys.includes("coo") || sys.includes("strategy"))
+      return "priya";
+    if (sys.includes("marcus webb") || sys.includes("chief marketing officer")) return "marcus";
+    if (sys.includes("elena vasquez") || sys.includes("chief financial officer")) return "elena";
+    if (
+      sys.includes("sam torres") ||
+      sys.includes("head of product") ||
+      sys.includes("customer advocate")
+    )
+      return "sam";
+    if (sys.includes("the chair") || sys.includes("chief of staff")) return "chair";
+    return "director";
   }
 
   _extractContextDetails(meta, system, messages) {
-    let ventureName = meta?.venture?.name || meta?.ventureName || '';
-    let phase = meta?.phase || '';
+    let ventureName = meta?.venture?.name || meta?.ventureName || "";
+    let phase = meta?.phase || "";
 
     // Fallbacks from system prompt if not in meta
     if (!ventureName && system) {
@@ -182,16 +193,16 @@ export class MockProvider {
       if (match) phase = match[1].trim();
     }
 
-    ventureName = ventureName || 'Apex Robotics';
-    phase = phase || 'Ideation';
+    ventureName = ventureName || "Apex Robotics";
+    phase = phase || "Ideation";
 
     // Find last user message
-    let lastUserMessage = '';
+    let lastUserMessage = "";
     if (messages && messages.length > 0) {
       for (let i = messages.length - 1; i >= 0; i--) {
         const msg = messages[i];
-        if (msg.role === 'user' || msg.author === 'Founder' || msg.isFounder) {
-          lastUserMessage = (msg.content || msg.text || '').trim();
+        if (msg.role === "user" || msg.author === "Founder" || msg.isFounder) {
+          lastUserMessage = (msg.content || msg.text || "").trim();
           break;
         }
       }
@@ -200,29 +211,48 @@ export class MockProvider {
     return { ventureName, phase, lastUserMessage };
   }
 
-  _generatePersonaResponse(agentId, { ventureName, phase, lastUserMessage }, meta = {}, system = '') {
+  _generatePersonaResponse(
+    agentId,
+    { ventureName, phase, lastUserMessage },
+    meta = {},
+    system = "",
+  ) {
     // 0. Framework synthesis / repair: strict JSON matching the framework schema
-    if (meta?.action === 'synthesize_framework') {
-      return JSON.stringify(mockFrameworkDoc(meta.frameworkId, meta.venture || {}, meta.phaseId, meta.derivedFromTitle), null, 2);
+    if (meta?.action === "synthesize_framework") {
+      return JSON.stringify(
+        mockFrameworkDoc(meta.frameworkId, meta.venture || {}, meta.phaseId, meta.derivedFromTitle),
+        null,
+        2,
+      );
     }
-    if (meta?.action === 'repair_framework') {
-      return JSON.stringify(mockRepairResponse(meta.frameworkId, meta.repairIds || [], meta.venture || {}, meta.phaseId), null, 2);
+    if (meta?.action === "repair_framework") {
+      return JSON.stringify(
+        mockRepairResponse(
+          meta.frameworkId,
+          meta.repairIds || [],
+          meta.venture || {},
+          meta.phaseId,
+        ),
+        null,
+        2,
+      );
     }
-    if (meta?.action === 'workbench_marcus') {
+    if (meta?.action === "workbench_marcus") {
       return JSON.stringify(mockMarcusReplan(meta), null, 2);
     }
-    if (meta?.action === 'workbench_elena') {
+    if (meta?.action === "workbench_elena") {
       return JSON.stringify(mockElenaReview(meta), null, 2);
     }
 
     // 1. Validation Challenge Target (David interrogating another director's remark)
-    if (meta?.action === 'challenge' || (system && system.includes('CLAIM UNDER INTERROGATION'))) {
-      const claimText = meta?.claimText || meta?.challengedText || 'the stated assumption';
-      const speaker = meta?.agentName || meta?.targetSpeaker || meta?.challengedSpeaker || 'the prior speaker';
+    if (meta?.action === "challenge" || (system && system.includes("CLAIM UNDER INTERROGATION"))) {
+      const claimText = meta?.claimText || meta?.challengedText || "the stated assumption";
+      const speaker =
+        meta?.agentName || meta?.targetSpeaker || meta?.challengedSpeaker || "the prior speaker";
       return `### Validation Interrogation — David Okafor
 
 > *Interrogating statement by ${speaker}:*  
-> "${claimText.slice(0, 160)}${claimText.length > 160 ? '...' : ''}"
+> "${claimText.slice(0, 160)}${claimText.length > 160 ? "..." : ""}"
 
 I am putting this claim directly under the falsification microscope.
 
@@ -235,11 +265,14 @@ ${speaker}'s recommendation assumes market willingness without pricing customer 
     }
 
     // 2. The Chair Round Summary (3 agreements, 2 disagreements, 1 next action)
-    if (meta?.action === 'round_summary' || (system && system.includes('3 Biggest Points of Agreement'))) {
+    if (
+      meta?.action === "round_summary" ||
+      (system && system.includes("3 Biggest Points of Agreement"))
+    ) {
       const founderTopic = meta?.founderText || lastUserMessage || `${ventureName} Strategy`;
       return `### Round Summary — The Chair
 
-The board has concluded its sequenced roundtable on: *"${founderTopic.slice(0, 90)}${founderTopic.length > 90 ? '...' : ''}"*. 
+The board has concluded its sequenced roundtable on: *"${founderTopic.slice(0, 90)}${founderTopic.length > 90 ? "..." : ""}"*. 
 
 Here is the executive consensus, divergences, and immediate milestone directive:
 
@@ -257,16 +290,17 @@ Deploy a 14-day customer smoke test with binding pilot commitment thresholds and
     }
 
     // Dynamic Context Chaining Prefix
-    const chainingPrefix = (meta?.priorSpeakers && meta.priorSpeakers.length > 0)
-      ? `*I have reviewed the remarks from ${meta.priorSpeakers.join(' and ')}.* Building on their arguments while sharpening the key risks:\n\n`
-      : '';
+    const chainingPrefix =
+      meta?.priorSpeakers && meta.priorSpeakers.length > 0
+        ? `*I have reviewed the remarks from ${meta.priorSpeakers.join(" and ")}.* Building on their arguments while sharpening the key risks:\n\n`
+        : "";
 
     const userEcho = lastUserMessage
-      ? `Regarding your point on *"${lastUserMessage.slice(0, 80)}${lastUserMessage.length > 80 ? '...' : ''}"* — we must dissect this carefully.`
+      ? `Regarding your point on *"${lastUserMessage.slice(0, 80)}${lastUserMessage.length > 80 ? "..." : ""}"* — we must dissect this carefully.`
       : `Looking closely at the fundamental positioning for **${ventureName}** in this **${phase}** review:`;
 
     switch (agentId) {
-      case 'maya':
+      case "maya":
         return `### Chief Innovation Officer Analysis — ${ventureName}
 
 ${chainingPrefix}${userEcho}
@@ -282,7 +316,7 @@ Consider how logistics networks decoupled dispatch from asset ownership. If we t
 **Direct inquiry for the founder:**
 What is the single operational truth about your customers' daily frustration that legacy vendors refuse to acknowledge?`;
 
-      case 'david':
+      case "david":
         return `### Validation Partner Audit — ${ventureName}
 
 ${userEcho}
@@ -298,7 +332,7 @@ Every unvalidated assumption in your pitch represents unpriced downside risk. We
 **Direct inquiry for the founder:**
 What specific empirical evidence do you hold *today* that demonstrates a customer has committed non-refundable time or budget?`;
 
-      case 'priya':
+      case "priya":
         return `### Operational Architecture & Moat Review — ${ventureName}
 
 ${userEcho}
@@ -315,7 +349,7 @@ If our delivery cycle requires bespoke manual configuration for each new account
 **Operational checkpoint:**
 What is the primary operational dependency in our delivery stack that will break if transaction volume increases 5x next month?`;
 
-      case 'marcus':
+      case "marcus":
         return `### Go-To-Market & Growth Architecture — ${ventureName}
 
 ${userEcho}
@@ -332,7 +366,7 @@ We do not win by out-spending established players on paid acquisition. We win th
 **Growth inquiry for the founder:**
 What is the exact sentence you put on the hero section of your landing page that makes an operations leader immediately forward it to their CFO?`;
 
-      case 'elena':
+      case "elena":
         return `### CFO Financial Discipline & Unit Economics — ${ventureName}
 
 ${userEcho}
@@ -349,7 +383,7 @@ When you factor in third-party API compute, onboarding support, and sales commis
 **Financial probe for the founder:**
 What is our marginal cost to service the hundredth customer versus the first customer?`;
 
-      case 'sam':
+      case "sam":
         return `### Customer Advocate & Product Scope Audit — ${ventureName}
 
 ${userEcho}
@@ -366,14 +400,17 @@ Right now, our proposed workflow asks too much of the user upfront. If the custo
 **Product inquiry for the founder:**
 Where in the current onboarding sequence do prospective users most frequently pause, ask questions, or hesitate?`;
 
-      case 'chair':
+      case "chair":
         // Deliverable synthesis memo
-        if (meta?.action === 'synthesize' || (system && system.includes('SYNTHESIS INSTRUCTIONS'))) {
+        if (
+          meta?.action === "synthesize" ||
+          (system && system.includes("SYNTHESIS INSTRUCTIONS"))
+        ) {
           return `# Executive Boardroom Synthesis Memo — ${ventureName}
 
 ## Milestone Status: ${phase} Review
 
-The board has convened to deliberate on the strategic posture of **${ventureName}**. Having reviewed the venture dossier and founder responses${lastUserMessage ? ` (including remarks on "${lastUserMessage.slice(0, 50)}...")` : ''}, the directors have arrived at unanimous consensus on critical stage-gate priorities.
+The board has convened to deliberate on the strategic posture of **${ventureName}**. Having reviewed the venture dossier and founder responses${lastUserMessage ? ` (including remarks on "${lastUserMessage.slice(0, 50)}...")` : ""}, the directors have arrived at unanimous consensus on critical stage-gate priorities.
 
 ### 1. Key Board Findings & Divergences
 - **Innovation & Wedge (Maya Chen)**: The board agrees that targeting underserved regional operators provides our strongest asymmetric advantage against legacy incumbents.
@@ -419,24 +456,29 @@ We recommend focusing all available bandwidth on resolving the highest-risk assu
     // Split into realistic small word/punctuation chunks
     const chunks = fullText.split(/(\s+)/);
     // Structured JSON drafts are long; stream them in bigger bursts.
-    const isStructured = ['synthesize_framework', 'repair_framework', 'workbench_marcus', 'workbench_elena'].includes(meta?.action);
+    const isStructured = [
+      "synthesize_framework",
+      "repair_framework",
+      "workbench_marcus",
+      "workbench_elena",
+    ].includes(meta?.action);
     const burst = isStructured ? 24 : 1;
 
     for (let i = 0; i < chunks.length; i += burst) {
       if (signal && signal.aborted) {
-        throw new DOMException('Operation aborted by user', 'AbortError');
+        throw new DOMException("Operation aborted by user", "AbortError");
       }
 
-      yield chunks.slice(i, i + burst).join('');
+      yield chunks.slice(i, i + burst).join("");
 
       // Realistic typing simulation delay: 30-60ms with small random jitter
       const delay = isStructured ? 20 : 30 + Math.floor(Math.random() * 30);
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
 
   async complete({ system, messages, signal, meta }) {
-    let full = '';
+    let full = "";
     for await (const chunk of this.stream({ system, messages, signal, meta })) {
       full += chunk;
     }
@@ -450,17 +492,17 @@ We recommend focusing all available bandwidth on resolving the highest-risk assu
  */
 export class OpenAIProvider {
   constructor(config = {}) {
-    this.name = 'openai';
-    this.baseURL = (config.baseURL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-    this.apiKey = config.apiKey || '';
-    this.model = config.model || 'gpt-4o';
+    this.name = "openai";
+    this.baseURL = (config.baseURL || "https://api.openai.com/v1").replace(/\/+$/, "");
+    this.apiKey = config.apiKey || "";
+    this.model = config.model || "gpt-4o";
     this.temperature = config.temperature !== undefined ? config.temperature : 0.7;
     this.maxTokens = config.maxTokens || 2048;
   }
 
   validateConfig() {
-    if (!this.apiKey || this.apiKey.trim() === '') {
-      return { ok: false, message: 'OpenAI API key is missing. Configure it in Settings.' };
+    if (!this.apiKey || this.apiKey.trim() === "") {
+      return { ok: false, message: "OpenAI API key is missing. Configure it in Settings." };
     }
     return { ok: true, message: `Configured for ${this.model} via ${this.baseURL}.` };
   }
@@ -478,17 +520,17 @@ export class OpenAIProvider {
       messages: formatOpenAIMessages(system, messages),
       stream: true,
       temperature: temp,
-      max_tokens: tokens
+      max_tokens: tokens,
     };
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey.trim()}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey.trim()}`,
       },
       body: JSON.stringify(bodyPayload),
-      signal
+      signal,
     });
 
     if (!response.ok) {
@@ -499,9 +541,9 @@ export class OpenAIProvider {
     const chunkExtractor = (dataStr) => {
       try {
         const parsed = JSON.parse(dataStr);
-        return parsed.choices?.[0]?.delta?.content || '';
+        return parsed.choices?.[0]?.delta?.content || "";
       } catch (err) {
-        return '';
+        return "";
       }
     };
 
@@ -509,7 +551,7 @@ export class OpenAIProvider {
   }
 
   async complete({ system, messages, temperature, maxTokens, signal }) {
-    let full = '';
+    let full = "";
     for await (const chunk of this.stream({ system, messages, temperature, maxTokens, signal })) {
       full += chunk;
     }
@@ -523,17 +565,17 @@ export class OpenAIProvider {
  */
 export class AnthropicProvider {
   constructor(config = {}) {
-    this.name = 'anthropic';
-    this.baseURL = (config.baseURL || 'https://api.anthropic.com').replace(/\/+$/, '');
-    this.apiKey = config.apiKey || '';
-    this.model = config.model || 'claude-3-7-sonnet-20250219';
+    this.name = "anthropic";
+    this.baseURL = (config.baseURL || "https://api.anthropic.com").replace(/\/+$/, "");
+    this.apiKey = config.apiKey || "";
+    this.model = config.model || "claude-3-7-sonnet-20250219";
     this.temperature = config.temperature !== undefined ? config.temperature : 0.7;
     this.maxTokens = config.maxTokens || 2048;
   }
 
   validateConfig() {
-    if (!this.apiKey || this.apiKey.trim() === '') {
-      return { ok: false, message: 'Anthropic API key is missing. Configure it in Settings.' };
+    if (!this.apiKey || this.apiKey.trim() === "") {
+      return { ok: false, message: "Anthropic API key is missing. Configure it in Settings." };
     }
     return { ok: true, message: `Configured for ${this.model} via ${this.baseURL}.` };
   }
@@ -551,7 +593,7 @@ export class AnthropicProvider {
       messages: formatAnthropicMessages(messages),
       max_tokens: tokens,
       temperature: temp,
-      stream: true
+      stream: true,
     };
 
     if (system) {
@@ -559,15 +601,15 @@ export class AnthropicProvider {
     }
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.apiKey.trim(),
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        "Content-Type": "application/json",
+        "x-api-key": this.apiKey.trim(),
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
       },
       body: JSON.stringify(bodyPayload),
-      signal
+      signal,
     });
 
     if (!response.ok) {
@@ -578,12 +620,12 @@ export class AnthropicProvider {
     const chunkExtractor = (dataStr) => {
       try {
         const parsed = JSON.parse(dataStr);
-        if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+        if (parsed.type === "content_block_delta" && parsed.delta?.text) {
           return parsed.delta.text;
         }
-        return '';
+        return "";
       } catch (err) {
-        return '';
+        return "";
       }
     };
 
@@ -591,7 +633,7 @@ export class AnthropicProvider {
   }
 
   async complete({ system, messages, temperature, maxTokens, signal }) {
-    let full = '';
+    let full = "";
     for await (const chunk of this.stream({ system, messages, temperature, maxTokens, signal })) {
       full += chunk;
     }
@@ -604,17 +646,20 @@ export class AnthropicProvider {
  */
 export class GeminiProvider {
   constructor(config = {}) {
-    this.name = 'gemini';
-    this.baseURL = (config.baseURL || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
-    this.apiKey = config.apiKey || '';
-    this.model = config.model || 'gemini-3.8-flash';
+    this.name = "gemini";
+    this.baseURL = (config.baseURL || "https://generativelanguage.googleapis.com").replace(
+      /\/+$/,
+      "",
+    );
+    this.apiKey = config.apiKey || "";
+    this.model = config.model || "gemini-3.8-flash";
     this.temperature = config.temperature !== undefined ? config.temperature : 0.7;
     this.maxTokens = config.maxTokens || 2048;
   }
 
   validateConfig() {
-    if (!this.apiKey || this.apiKey.trim() === '') {
-      return { ok: false, message: 'Gemini API key is missing. Configure it in Settings.' };
+    if (!this.apiKey || this.apiKey.trim() === "") {
+      return { ok: false, message: "Gemini API key is missing. Configure it in Settings." };
     }
     return { ok: true, message: `Configured for ${this.model}.` };
   }
@@ -631,21 +676,21 @@ export class GeminiProvider {
       contents: formatGeminiContents(messages),
       generationConfig: {
         temperature: temp,
-        maxOutputTokens: tokens
-      }
+        maxOutputTokens: tokens,
+      },
     };
 
     if (system) {
       bodyPayload.systemInstruction = {
-        parts: [{ text: system }]
+        parts: [{ text: system }],
       };
     }
 
     const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bodyPayload),
-      signal
+      signal,
     });
 
     if (!response.ok) {
@@ -656,9 +701,9 @@ export class GeminiProvider {
     const chunkExtractor = (dataStr) => {
       try {
         const parsed = JSON.parse(dataStr);
-        return parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        return parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
       } catch (err) {
-        return '';
+        return "";
       }
     };
 
@@ -666,7 +711,7 @@ export class GeminiProvider {
   }
 
   async complete({ system, messages, temperature, maxTokens, signal }) {
-    let full = '';
+    let full = "";
     for await (const chunk of this.stream({ system, messages, temperature, maxTokens, signal })) {
       full += chunk;
     }
@@ -688,32 +733,35 @@ export const PROVIDERS = {
  * Resolve the active provider from stored settings (Default: mock)
  */
 export async function getProvider() {
-  const activeType = await getSetting('llm_provider_type', 'mock');
+  const activeType = await getSetting("llm_provider_type", "mock");
 
-  if (activeType === 'openai') {
-    const baseURL = await getSetting('openai_base_url', 'https://api.openai.com/v1');
-    const apiKey = await getSetting('openai_api_key', await getSetting('llm_api_key', ''));
-    const model = await getSetting('openai_model', 'gpt-4o');
-    const temperature = parseFloat(await getSetting('llm_temperature', '0.7'));
-    const maxTokens = parseInt(await getSetting('llm_max_tokens', '2048'), 10);
+  if (activeType === "openai") {
+    const baseURL = await getSetting("openai_base_url", "https://api.openai.com/v1");
+    const apiKey = await getSetting("openai_api_key", await getSetting("llm_api_key", ""));
+    const model = await getSetting("openai_model", "gpt-4o");
+    const temperature = parseFloat(await getSetting("llm_temperature", "0.7"));
+    const maxTokens = parseInt(await getSetting("llm_max_tokens", "2048"), 10);
     return new OpenAIProvider({ baseURL, apiKey, model, temperature, maxTokens });
   }
 
-  if (activeType === 'anthropic') {
-    const baseURL = await getSetting('anthropic_base_url', 'https://api.anthropic.com');
-    const apiKey = await getSetting('anthropic_api_key', await getSetting('llm_api_key', ''));
-    const model = await getSetting('anthropic_model', 'claude-3-7-sonnet-20250219');
-    const temperature = parseFloat(await getSetting('llm_temperature', '0.7'));
-    const maxTokens = parseInt(await getSetting('llm_max_tokens', '2048'), 10);
+  if (activeType === "anthropic") {
+    const baseURL = await getSetting("anthropic_base_url", "https://api.anthropic.com");
+    const apiKey = await getSetting("anthropic_api_key", await getSetting("llm_api_key", ""));
+    const model = await getSetting("anthropic_model", "claude-3-7-sonnet-20250219");
+    const temperature = parseFloat(await getSetting("llm_temperature", "0.7"));
+    const maxTokens = parseInt(await getSetting("llm_max_tokens", "2048"), 10);
     return new AnthropicProvider({ baseURL, apiKey, model, temperature, maxTokens });
   }
 
-  if (activeType === 'gemini') {
-    const baseURL = await getSetting('gemini_base_url', 'https://generativelanguage.googleapis.com');
-    const apiKey = await getSetting('gemini_api_key', await getSetting('llm_api_key', ''));
-    const model = await getSetting('gemini_model', 'gemini-3.8-flash');
-    const temperature = parseFloat(await getSetting('llm_temperature', '0.7'));
-    const maxTokens = parseInt(await getSetting('llm_max_tokens', '2048'), 10);
+  if (activeType === "gemini") {
+    const baseURL = await getSetting(
+      "gemini_base_url",
+      "https://generativelanguage.googleapis.com",
+    );
+    const apiKey = await getSetting("gemini_api_key", await getSetting("llm_api_key", ""));
+    const model = await getSetting("gemini_model", "gemini-3.8-flash");
+    const temperature = parseFloat(await getSetting("llm_temperature", "0.7"));
+    const maxTokens = parseInt(await getSetting("llm_max_tokens", "2048"), 10);
     return new GeminiProvider({ baseURL, apiKey, model, temperature, maxTokens });
   }
 
@@ -749,7 +797,7 @@ export async function validateConfig() {
  * Test Connection ping (1-token test)
  */
 export async function testConnection(providerInstance = null) {
-  const provider = providerInstance || await getProvider();
+  const provider = providerInstance || (await getProvider());
   const startTime = performance.now();
 
   try {
@@ -758,12 +806,13 @@ export async function testConnection(providerInstance = null) {
       return { ok: false, latencyMs: 0, message: valid.message };
     }
 
-    if (provider.name === 'mock') {
-      await new Promise(r => setTimeout(r, 60));
+    if (provider.name === "mock") {
+      await new Promise((r) => setTimeout(r, 60));
       return {
         ok: true,
         latencyMs: Math.round(performance.now() - startTime),
-        message: 'Mock engine ready. Instant deterministic streaming operational (no network/keys).'
+        message:
+          "Mock engine ready. Instant deterministic streaming operational (no network/keys).",
       };
     }
 
@@ -774,11 +823,11 @@ export async function testConnection(providerInstance = null) {
     let result;
     try {
       result = await provider.complete({
-        system: 'Output exactly one word: OK',
-        messages: [{ role: 'user', content: 'Ping' }],
+        system: "Output exactly one word: OK",
+        messages: [{ role: "user", content: "Ping" }],
         maxTokens: 5,
         temperature: 0.1,
-        signal: controller.signal
+        signal: controller.signal,
       });
     } finally {
       clearTimeout(timeoutId);
@@ -789,14 +838,14 @@ export async function testConnection(providerInstance = null) {
     return {
       ok: true,
       latencyMs,
-      message: `Connection successful (${latencyMs}ms). Response: "${result.trim().slice(0, 30)}"`
+      message: `Connection successful (${latencyMs}ms). Response: "${result.trim().slice(0, 30)}"`,
     };
   } catch (err) {
     const latencyMs = Math.round(performance.now() - startTime);
     return {
       ok: false,
       latencyMs,
-      message: err.name === 'AbortError' ? 'Connection timed out after 10 seconds.' : err.message
+      message: err.name === "AbortError" ? "Connection timed out after 10 seconds." : err.message,
     };
   }
 }

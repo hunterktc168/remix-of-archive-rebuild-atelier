@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* Ported verbatim from the original Boardroom vanilla JS app; see src/boardroom/AGENTS.md. */
-import { navigateTo, replaceUrlSilently } from '../../nav';
+import { navigateTo, replaceUrlSilently } from "../../nav";
 /**
  * Board Members Roster View Module
  * Route: #/agents
@@ -9,8 +9,8 @@ import { navigateTo, replaceUrlSilently } from '../../nav';
  * interactive enable/disable toggle, prompt preview coherent, reset to defaults.
  */
 
-import { DEFAULT_AGENTS, THE_CHAIR, getAgent } from '../agents';
-import { getAll, getSetting, put, resetAgentsToDefault, seedAgentsIfEmpty } from '../db';
+import { DEFAULT_AGENTS, THE_CHAIR, getAgent } from "../agents";
+import { getAll, getSetting, put, resetAgentsToDefault, seedAgentsIfEmpty } from "../db";
 
 let selectedAgent = null;
 // Tracks the document-level Escape handler so it can be removed before re-binding
@@ -19,7 +19,7 @@ let escapeKeyHandler = null;
 
 export async function render(container, params = {}) {
   // Update Topbar action slot
-  const actionSlot = document.getElementById('topbar-action-slot');
+  const actionSlot = document.getElementById("topbar-action-slot");
   if (actionSlot) {
     actionSlot.innerHTML = `
       <button id="reset-roster-btn" class="btn btn-ghost text-xs py-1.5 px-3 border border-subtle hover:border-danger hover:text-danger transition-colors">
@@ -35,13 +35,14 @@ export async function render(container, params = {}) {
   await seedAgentsIfEmpty(DEFAULT_AGENTS);
 
   // Load roster strictly from IndexedDB
-  const storedAgents = await getAll('agents');
+  const storedAgents = await getAll("agents");
   // Sort by order or fallback to DEFAULT_AGENTS order
-  const agents = (storedAgents && storedAgents.length > 0)
-    ? storedAgents.sort((a, b) => (a.order || 0) - (b.order || 0))
-    : DEFAULT_AGENTS;
+  const agents =
+    storedAgents && storedAgents.length > 0
+      ? storedAgents.sort((a, b) => (a.order || 0) - (b.order || 0))
+      : DEFAULT_AGENTS;
 
-  const activeCount = agents.filter(a => a.enabled).length;
+  const activeCount = agents.filter((a) => a.enabled).length;
 
   container.innerHTML = `
     <div class="space-y-6 animate-fadeIn">
@@ -94,12 +95,13 @@ export async function render(container, params = {}) {
 
       <!-- Agent Cards Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5" id="agent-cards-grid">
-        ${agents.map((agent) => {
-          const colorClass = `agent-${agent.color || 'cyan'}`;
-          const colorBgClass = `agent-${agent.color || 'cyan'}-bg`;
+        ${agents
+          .map((agent) => {
+            const colorClass = `agent-${agent.color || "cyan"}`;
+            const colorBgClass = `agent-${agent.color || "cyan"}-bg`;
 
-          return `
-            <div class="panel p-5 border-subtle hover:border-border-strong hover:-translate-y-0.5 transition-all flex flex-col justify-between group cursor-pointer relative ${!agent.enabled ? 'opacity-60 grayscale-[40%]' : ''}" data-agent-id="${agent.id}">
+            return `
+            <div class="panel p-5 border-subtle hover:border-border-strong hover:-translate-y-0.5 transition-all flex flex-col justify-between group cursor-pointer relative ${!agent.enabled ? "opacity-60 grayscale-[40%]" : ""}" data-agent-id="${agent.id}">
               <div>
                 <!-- Card Header -->
                 <div class="flex items-start justify-between gap-3 mb-4">
@@ -122,12 +124,12 @@ export async function render(container, params = {}) {
 
                   <!-- Enabled / Disabled Toggle Switch -->
                   <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-                    <label class="relative inline-flex items-center cursor-pointer" title="${agent.enabled ? 'Disable Director' : 'Enable Director'}">
+                    <label class="relative inline-flex items-center cursor-pointer" title="${agent.enabled ? "Disable Director" : "Enable Director"}">
                       <input 
                         type="checkbox" 
                         class="sr-only peer agent-toggle-checkbox" 
                         data-agent-id="${agent.id}" 
-                        ${agent.enabled ? 'checked' : ''} 
+                        ${agent.enabled ? "checked" : ""} 
                       />
                       <div class="w-9 h-5 bg-base border border-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-muted peer-checked:after:bg-brass-light after:border-border-subtle after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brass/20 peer-checked:border-brass/40"></div>
                     </label>
@@ -141,11 +143,15 @@ export async function render(container, params = {}) {
 
                 <!-- Expertise Chips -->
                 <div class="flex flex-wrap gap-1.5 mb-4">
-                  ${(agent.expertise || []).map(exp => `
+                  ${(agent.expertise || [])
+                    .map(
+                      (exp) => `
                     <span class="chip text-[11px] py-0.5 px-2 bg-base border-subtle/80 text-slate-300">
                       ${exp}
                     </span>
-                  `).join('')}
+                  `,
+                    )
+                    .join("")}
                 </div>
               </div>
 
@@ -153,11 +159,15 @@ export async function render(container, params = {}) {
               <div class="pt-3 border-t border-subtle flex items-center justify-between text-xs">
                 <div class="flex items-center gap-1.5 overflow-hidden">
                   <span class="text-[11px] text-muted mr-1">Phases:</span>
-                  ${(agent.phases || []).map(p => `
+                  ${(agent.phases || [])
+                    .map(
+                      (p) => `
                     <span class="chip text-[10px] py-0 px-1.5 bg-panel border-subtle uppercase font-mono">
                       ${p}
                     </span>
-                  `).join('')}
+                  `,
+                    )
+                    .join("")}
                 </div>
 
                 <span class="text-xs text-brass-light group-hover:translate-x-0.5 transition-transform flex items-center gap-1 font-medium">
@@ -169,7 +179,8 @@ export async function render(container, params = {}) {
               </div>
             </div>
           `;
-        }).join('')}
+          })
+          .join("")}
       </div>
     </div>
 
@@ -211,36 +222,36 @@ export async function render(container, params = {}) {
  */
 function wireEventListeners(container, agents) {
   // Reset roster modal triggers
-  const resetBtn = document.getElementById('reset-roster-btn');
-  const resetModal = document.getElementById('reset-roster-modal');
-  const cancelResetBtn = document.getElementById('cancel-reset-modal-btn');
-  const confirmResetBtn = document.getElementById('confirm-reset-modal-btn');
+  const resetBtn = document.getElementById("reset-roster-btn");
+  const resetModal = document.getElementById("reset-roster-modal");
+  const cancelResetBtn = document.getElementById("cancel-reset-modal-btn");
+  const confirmResetBtn = document.getElementById("confirm-reset-modal-btn");
 
   if (resetBtn && resetModal) {
-    resetBtn.addEventListener('click', () => {
-      resetModal.classList.remove('hidden');
+    resetBtn.addEventListener("click", () => {
+      resetModal.classList.remove("hidden");
     });
 
-    cancelResetBtn?.addEventListener('click', () => {
-      resetModal.classList.add('hidden');
+    cancelResetBtn?.addEventListener("click", () => {
+      resetModal.classList.add("hidden");
     });
 
     // Close on backdrop click (inner panel stops propagation via onclick)
-    resetModal.addEventListener('click', (e) => {
-      if (e.target === resetModal) resetModal.classList.add('hidden');
+    resetModal.addEventListener("click", (e) => {
+      if (e.target === resetModal) resetModal.classList.add("hidden");
     });
 
-    confirmResetBtn?.addEventListener('click', async () => {
-      resetModal.classList.add('hidden');
+    confirmResetBtn?.addEventListener("click", async () => {
+      resetModal.classList.add("hidden");
       await resetAgentsToDefault(DEFAULT_AGENTS);
       render(container);
     });
   }
 
   // Chair Spotlight Card click
-  const chairCard = document.getElementById('chair-spotlight-card');
+  const chairCard = document.getElementById("chair-spotlight-card");
   if (chairCard) {
-    chairCard.addEventListener('click', () => {
+    chairCard.addEventListener("click", () => {
       openAgentDrawer(THE_CHAIR);
     });
   }
@@ -249,11 +260,11 @@ function wireEventListeners(container, agents) {
   // Scope to the card panel only: a bare [data-agent-id] selector would also match
   // the enable/disable <input> (which carries the same attribute) and open the drawer
   // every time a director is toggled.
-  const cards = container.querySelectorAll('.panel[data-agent-id]');
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
-      const id = card.getAttribute('data-agent-id');
-      const agent = agents.find(a => a.id === id);
+  const cards = container.querySelectorAll(".panel[data-agent-id]");
+  cards.forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.getAttribute("data-agent-id");
+      const agent = agents.find((a) => a.id === id);
       if (agent) {
         openAgentDrawer(agent);
       }
@@ -261,77 +272,83 @@ function wireEventListeners(container, agents) {
   });
 
   // Enable/Disable Toggles
-  const toggles = container.querySelectorAll('.agent-toggle-checkbox');
-  toggles.forEach(toggle => {
-    toggle.addEventListener('change', async (e) => {
-      const id = toggle.getAttribute('data-agent-id');
-      const agent = agents.find(a => a.id === id);
+  const toggles = container.querySelectorAll(".agent-toggle-checkbox");
+  toggles.forEach((toggle) => {
+    toggle.addEventListener("change", async (e) => {
+      const id = toggle.getAttribute("data-agent-id");
+      const agent = agents.find((a) => a.id === id);
       if (agent) {
         agent.enabled = e.target.checked;
-        await put('agents', agent);
+        await put("agents", agent);
 
         // Update card visual state
         const card = container.querySelector(`[data-agent-id="${id}"]`);
         if (card) {
           if (agent.enabled) {
-            card.classList.remove('opacity-60', 'grayscale-[40%]');
+            card.classList.remove("opacity-60", "grayscale-[40%]");
           } else {
-            card.classList.add('opacity-60', 'grayscale-[40%]');
+            card.classList.add("opacity-60", "grayscale-[40%]");
           }
         }
 
         // Update badge count
-        const activeCount = agents.filter(a => a.enabled).length;
-        const countBadge = document.getElementById('active-agents-badge');
+        const activeCount = agents.filter((a) => a.enabled).length;
+        const countBadge = document.getElementById("active-agents-badge");
         if (countBadge) countBadge.textContent = activeCount;
       }
     });
   });
 
   // Modal backdrop close
-  const backdrop = document.getElementById('agent-modal-backdrop');
+  const backdrop = document.getElementById("agent-modal-backdrop");
   if (backdrop) {
-    backdrop.addEventListener('click', closeAgentDrawer);
+    backdrop.addEventListener("click", closeAgentDrawer);
   }
 
-  if (escapeKeyHandler) document.removeEventListener('keydown', escapeKeyHandler);
+  if (escapeKeyHandler) document.removeEventListener("keydown", escapeKeyHandler);
   escapeKeyHandler = (e) => {
-    if (e.key !== 'Escape') return;
+    if (e.key !== "Escape") return;
     // Reset modal sits above the drawer; close it first if open.
-    if (resetModal && !resetModal.classList.contains('hidden')) {
-      resetModal.classList.add('hidden');
+    if (resetModal && !resetModal.classList.contains("hidden")) {
+      resetModal.classList.add("hidden");
     } else {
       closeAgentDrawer();
     }
   };
-  document.addEventListener('keydown', escapeKeyHandler);
+  document.addEventListener("keydown", escapeKeyHandler);
 }
 
 /**
  * Open Director Detail Drawer / Modal
  */
 async function openAgentDrawer(agent) {
-  const backdrop = document.getElementById('agent-modal-backdrop');
-  const modal = document.getElementById('agent-modal-content');
+  const backdrop = document.getElementById("agent-modal-backdrop");
+  const modal = document.getElementById("agent-modal-content");
   if (!backdrop || !modal) return;
 
-  const colorClass = `agent-${agent.color || 'cyan'}`;
-  const colorBgClass = `agent-${agent.color || 'cyan'}-bg`;
+  const colorClass = `agent-${agent.color || "cyan"}`;
+  const colorBgClass = `agent-${agent.color || "cyan"}-bg`;
 
   // Query participation statistics from IndexedDB sessions
-  const sessions = await getAll('sessions');
-  const currentVentureId = (await getSetting('active_venture_id', 'default')) || 'default';
-  const currentVentureName = (await getSetting('active_venture_name', 'Apex Robotics')) || 'Apex Robotics';
+  const sessions = await getAll("sessions");
+  const currentVentureId = (await getSetting("active_venture_id", "default")) || "default";
+  const currentVentureName =
+    (await getSetting("active_venture_name", "Apex Robotics")) || "Apex Robotics";
 
   let turnsCount = 0;
   for (const session of sessions) {
-    if (!session.ventureId || session.ventureId === currentVentureId || session.ventureId === 'default') {
+    if (
+      !session.ventureId ||
+      session.ventureId === currentVentureId ||
+      session.ventureId === "default"
+    ) {
       const messages = session.messages || session.transcript || [];
       for (const msg of messages) {
         const matchId = msg.agentId === agent.id || msg.authorId === agent.id;
         const matchName = msg.author && msg.author.toLowerCase().includes(agent.name.toLowerCase());
         const matchRole = msg.role && msg.role.toLowerCase() === agent.shortRole.toLowerCase();
-        const matchChair = agent.id === 'chair' && (msg.author === 'The Chair' || msg.agentId === 'chair');
+        const matchChair =
+          agent.id === "chair" && (msg.author === "The Chair" || msg.agentId === "chair");
         if (matchId || matchName || matchRole || matchChair) {
           turnsCount++;
         }
@@ -341,26 +358,32 @@ async function openAgentDrawer(agent) {
 
   // Generate live sample system prompt
   const fullAgent = getAgent(agent.id) || agent;
-  let samplePrompt = '';
-  if (typeof fullAgent.systemPromptTemplate === 'function') {
+  let samplePrompt = "";
+  if (typeof fullAgent.systemPromptTemplate === "function") {
     samplePrompt = fullAgent.systemPromptTemplate({
       venture: {
         name: currentVentureName,
-        thesis: 'Autonomous micro-fulfillment robotic carts for decentralized grocery hubs',
-        audience: 'Mid-sized regional supermarket chains',
-        problem: 'Skyrocketing pick/pack labor costs for on-demand grocery delivery',
-        solution: 'Self-navigating autonomous shelf-crawler carts delivering 4x pick density',
-        notes: 'Pre-seed stage, 3 supermarket chains evaluating refundable pilot LOIs.'
+        thesis: "Autonomous micro-fulfillment robotic carts for decentralized grocery hubs",
+        audience: "Mid-sized regional supermarket chains",
+        problem: "Skyrocketing pick/pack labor costs for on-demand grocery delivery",
+        solution: "Self-navigating autonomous shelf-crawler carts delivering 4x pick density",
+        notes: "Pre-seed stage, 3 supermarket chains evaluating refundable pilot LOIs.",
       },
-      phase: agent.phases && agent.phases[0] ? agent.phases[0] : 'ideation',
+      phase: agent.phases && agent.phases[0] ? agent.phases[0] : "ideation",
       transcript: [
-        { author: 'The Chair', text: 'Welcome board. Today we evaluate the core thesis of Apex Robotics in Phase 1: Ideation.' },
-        { author: 'Founder', text: 'We have 3 regional grocery chains expressing interest in our pilot carts.' }
+        {
+          author: "The Chair",
+          text: "Welcome board. Today we evaluate the core thesis of Apex Robotics in Phase 1: Ideation.",
+        },
+        {
+          author: "Founder",
+          text: "We have 3 regional grocery chains expressing interest in our pilot carts.",
+        },
       ],
-      priorAgentReplies: ''
+      priorAgentReplies: "",
     });
   } else {
-    samplePrompt = 'No prompt template defined.';
+    samplePrompt = "No prompt template defined.";
   }
 
   modal.innerHTML = `
@@ -387,7 +410,7 @@ async function openAgentDrawer(agent) {
     <div class="p-4 rounded-xl bg-base border border-subtle">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full ${agent.enabled ? 'bg-success' : 'bg-muted'}"></span>
+          <span class="w-2 h-2 rounded-full ${agent.enabled ? "bg-success" : "bg-muted"}"></span>
           <h4 class="text-xs font-semibold uppercase tracking-wider text-muted">
             Board Participation & Engagement
           </h4>
@@ -417,8 +440,8 @@ async function openAgentDrawer(agent) {
         <div class="p-3 rounded-lg bg-panel border border-subtle/80 flex flex-col justify-between col-span-2 sm:col-span-1">
           <div class="text-[10px] uppercase font-mono tracking-wider text-muted font-medium">Participation Status</div>
           <div class="text-xs font-semibold text-slate-200 mt-2 flex items-center gap-1.5 truncate">
-            <span class="w-1.5 h-1.5 rounded-full ${turnsCount > 0 ? 'bg-brass' : 'bg-muted'}"></span>
-            ${turnsCount > 0 ? `${turnsCount} Recorded Turns` : 'Awaiting First Call'}
+            <span class="w-1.5 h-1.5 rounded-full ${turnsCount > 0 ? "bg-brass" : "bg-muted"}"></span>
+            ${turnsCount > 0 ? `${turnsCount} Recorded Turns` : "Awaiting First Call"}
           </div>
           <div class="text-[10px] text-faint mt-1">Active session transcript</div>
         </div>
@@ -435,7 +458,7 @@ async function openAgentDrawer(agent) {
       <div>
         <h4 class="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Persona Tone & Analytical Stance</h4>
         <div class="p-3 rounded-lg bg-base border border-subtle text-xs text-slate-300">
-          ${agent.tone || 'Direct, structured, executive.'}
+          ${agent.tone || "Direct, structured, executive."}
         </div>
       </div>
 
@@ -443,11 +466,15 @@ async function openAgentDrawer(agent) {
       <div>
         <h4 class="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Key Disciplines</h4>
         <div class="flex flex-wrap gap-2">
-          ${(agent.expertise || []).map(exp => `
+          ${(agent.expertise || [])
+            .map(
+              (exp) => `
             <span class="chip text-xs py-1 px-2.5 bg-base border-subtle text-slate-200">
               ${exp}
             </span>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </div>
       </div>
 
@@ -455,11 +482,15 @@ async function openAgentDrawer(agent) {
       <div>
         <h4 class="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Active Stage-Gate Phases</h4>
         <div class="flex gap-2">
-          ${(agent.phases || []).map(p => `
+          ${(agent.phases || [])
+            .map(
+              (p) => `
             <span class="chip text-xs py-0.5 px-2.5 bg-panel border-subtle uppercase font-mono text-slate-300">
               Phase: ${p}
             </span>
-          `).join('')}
+          `,
+            )
+            .join("")}
         </div>
       </div>
 
@@ -490,28 +521,28 @@ async function openAgentDrawer(agent) {
     </div>
   `;
 
-  backdrop.classList.remove('hidden');
-  document.body.classList.add('overflow-hidden');
+  backdrop.classList.remove("hidden");
+  document.body.classList.add("overflow-hidden");
 
-  const closeBtn = document.getElementById('close-modal-btn');
-  const footerBtn = document.getElementById('close-modal-footer-btn');
-  if (closeBtn) closeBtn.addEventListener('click', closeAgentDrawer);
-  if (footerBtn) footerBtn.addEventListener('click', closeAgentDrawer);
+  const closeBtn = document.getElementById("close-modal-btn");
+  const footerBtn = document.getElementById("close-modal-footer-btn");
+  if (closeBtn) closeBtn.addEventListener("click", closeAgentDrawer);
+  if (footerBtn) footerBtn.addEventListener("click", closeAgentDrawer);
 }
 
 function closeAgentDrawer() {
-  const backdrop = document.getElementById('agent-modal-backdrop');
+  const backdrop = document.getElementById("agent-modal-backdrop");
   if (backdrop) {
-    backdrop.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+    backdrop.classList.add("hidden");
+    document.body.classList.remove("overflow-hidden");
   }
 }
 
 function escapeHtml(str) {
-  return (str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return (str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

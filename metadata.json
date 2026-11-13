@@ -1,0 +1,6 @@
+{
+  "name": "Boardroom",
+  "description": "Executive board advisory simulation and strategic framework workspaces with SWOT, Canvas, and Marketing Plan workbenches.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
